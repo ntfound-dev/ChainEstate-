@@ -36,6 +36,57 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 
 ---
 
+## Problem & Solution
+
+### The Problem
+
+**$326 trillion** in global real estate wealth is locked away from ordinary investors:
+
+| Pain Point | Reality Today |
+|-----------|---------------|
+| **High entry barrier** | Buying property requires $100K–$1M+ in capital |
+| **Zero liquidity** | You can't sell 10% of your apartment — it's all or nothing |
+| **No financial privacy** | On public blockchains, anyone can see your full portfolio and rental income |
+| **Rent opacity** | Investors have no on-chain proof of yield or distribution fairness |
+| **Geographic exclusion** | Cross-border ownership is legally complex and expensive |
+
+### The Solution
+
+ChainEstate breaks every barrier:
+
+| Problem | ChainEstate Solution |
+|---------|---------------------|
+| High entry barrier | Fractional tokens from $1 — anyone with USDT can invest |
+| Zero liquidity | P2P secondary market with instant settlement |
+| No financial privacy | **iExec Nox ERC-7984**: holdings and rent amounts stay encrypted on-chain |
+| Rent opacity | Smart contract distributes USDT to all holders, fully auditable totals |
+| Geographic exclusion | Permissionless — any wallet globally, no KYC friction |
+
+---
+
+## Real-World Impact
+
+```
+Traditional Real Estate           ChainEstate
+─────────────────────             ──────────────────────
+Min. investment: $50,000+    →    Min. investment: $1
+Time to sell: 3–12 months    →    Time to sell: seconds
+Portfolio visible to all     →    Holdings encrypted by TEE
+Rent paid manually           →    Rent auto-distributed on-chain
+Access: accredited only      →    Access: any wallet worldwide
+```
+
+**Who benefits:**
+- 🌍 **Emerging market investors** — own a slice of Dubai, NYC, or Singapore real estate from anywhere
+- 🔐 **Privacy-first investors** — hold and trade without exposing net worth on a public ledger
+- 🏗 **Property developers** — tokenize assets and raise capital globally without traditional brokers
+- 💹 **DeFi traders** — liquid real-estate-backed assets with a built-in secondary market
+
+**Why iExec Nox matters here:**  
+Traditional RWA tokens expose your entire portfolio on-chain. A whale accumulating $10M in Dubai apartments is fully visible — creating front-running, targeting, and privacy risks. ERC-7984 encrypted balances make ChainEstate the **first real estate tokenization platform where financial positions are genuinely private**.
+
+---
+
 ## Tech Stack
 
 ### Smart Contracts
