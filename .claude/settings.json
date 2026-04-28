@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 -c \"import json,sys; abi=json.load\\(sys.stdin\\)['abi']; [print\\(json.dumps\\(f,indent=2\\)\\) for f in abi if f.get\\('name'\\) in ['purchaseTokens','grantOperator','approve','allowance']]\")",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}
