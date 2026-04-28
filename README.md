@@ -191,12 +191,13 @@ The iExec **Handle Gateway** (Intel TDX TEE) is the only entity that can compute
 
 | Contract | Address |
 |----------|---------|
-| CESTToken | [`0xD57f88B64611dBf74f87FC40f2F1010320483584`](https://sepolia.arbiscan.io/address/0xD57f88B64611dBf74f87FC40f2F1010320483584) |
-| PropertyRegistry | [`0xbED7ad48984fBb3984F5aF83E176fb9f40dB37cc`](https://sepolia.arbiscan.io/address/0xbED7ad48984fBb3984F5aF83E176fb9f40dB37cc) |
-| RentDistributor | [`0xCc6296557c05ca02f3258DEd19f4104a9C19a80B`](https://sepolia.arbiscan.io/address/0xCc6296557c05ca02f3258DEd19f4104a9C19a80B) |
-| SecondaryMarket | [`0x1288dF9F55673cBFc97BCe7aD5445D77B9029B92`](https://sepolia.arbiscan.io/address/0x1288dF9F55673cBFc97BCe7aD5445D77B9029B92) |
-| Demo PropertyToken (Pearl Dubai) | [`0x6DA3c5DABA3a18FEeD396f25b857be77B497A55A`](https://sepolia.arbiscan.io/address/0x6DA3c5DABA3a18FEeD396f25b857be77B497A55A) |
-| MockERC20 (USDT testnet) | [`0xcE265E23aAc349cEf9Fa3CC058062A44080f2289`](https://sepolia.arbiscan.io/address/0xcE265E23aAc349cEf9Fa3CC058062A44080f2289) |
+| CESTToken | [`0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D`](https://sepolia.arbiscan.io/address/0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D#code) |
+| PropertyRegistry | [`0xCdBCA38E4C86bdC74Cd49D93cE2B88D3ecC00d5e`](https://sepolia.arbiscan.io/address/0xCdBCA38E4C86bdC74Cd49D93cE2B88D3ecC00d5e#code) |
+| RentDistributor | [`0x80E0e5f6488FA2726c042a204344281974f72609`](https://sepolia.arbiscan.io/address/0x80E0e5f6488FA2726c042a204344281974f72609#code) |
+| SecondaryMarket | [`0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa`](https://sepolia.arbiscan.io/address/0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa#code) |
+| ConfidentialGovernance | [`0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14`](https://sepolia.arbiscan.io/address/0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14#code) |
+| Demo PropertyToken (Pearl Dubai) | [`0x853D51fBD5E288BF189FE0126d59f855c821a641`](https://sepolia.arbiscan.io/address/0x853D51fBD5E288BF189FE0126d59f855c821a641) |
+| MockERC20 (USDT testnet) | [`0x9a822B9A50D090CfcCa1e6474efCd653112d8501`](https://sepolia.arbiscan.io/address/0x9a822B9A50D090CfcCa1e6474efCd653112d8501) |
 
 ---
 

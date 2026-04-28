@@ -71,8 +71,16 @@ async function main() {
   const marketAddress = await market.getAddress();
   console.log("  ✓ SecondaryMarket:", marketAddress);
 
-  // ─── 5. Wire up registry ─────────────────────────────────────────────────
-  console.log("5/5  Wiring contracts...");
+  // ─── 5. ConfidentialGovernance ───────────────────────────────────────────
+  console.log("5/6  Deploying ConfidentialGovernance...");
+  const ConfidentialGovernance = await ethers.getContractFactory("ConfidentialGovernance");
+  const governance = await ConfidentialGovernance.deploy(registryAddress);
+  await governance.waitForDeployment();
+  const governanceAddress = await governance.getAddress();
+  console.log("  ✓ ConfidentialGovernance:", governanceAddress);
+
+  // ─── 6. Wire up registry ─────────────────────────────────────────────────
+  console.log("6/6  Wiring contracts...");
   let tx = await registry.setRentDistributor(rentDistributorAddress);
   await tx.wait();
   console.log("  ✓ Registry → RentDistributor linked");
@@ -110,11 +118,12 @@ async function main() {
   console.log("\n═══════════════════════════════════════════════════");
   console.log("  ChainEstate Deployment Complete");
   console.log("═══════════════════════════════════════════════════");
-  console.log("  CESTToken:           ", cestAddress);
-  console.log("  PropertyRegistry:    ", registryAddress);
-  console.log("  RentDistributor:     ", rentDistributorAddress);
-  console.log("  SecondaryMarket:     ", marketAddress);
-  console.log("  Demo PropertyToken:  ", demoPropertyTokenAddress);
+  console.log("  CESTToken:                ", cestAddress);
+  console.log("  PropertyRegistry:         ", registryAddress);
+  console.log("  RentDistributor:          ", rentDistributorAddress);
+  console.log("  SecondaryMarket:          ", marketAddress);
+  console.log("  ConfidentialGovernance:   ", governanceAddress);
+  console.log("  Demo PropertyToken:       ", demoPropertyTokenAddress);
   console.log("═══════════════════════════════════════════════════\n");
 
   // Save addresses to a JSON file for verify script
@@ -127,6 +136,7 @@ async function main() {
     registry: registryAddress,
     rentDistributor: rentDistributorAddress,
     secondaryMarket: marketAddress,
+    confidentialGovernance: governanceAddress,
     demoPropertyToken: demoPropertyTokenAddress,
     usdt: USDT_ADDRESS,
     mockUsdt: !process.env.USDT_ADDRESS ? USDT_ADDRESS : undefined,

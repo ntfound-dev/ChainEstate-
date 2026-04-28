@@ -12,6 +12,7 @@ async function main() {
     registry,
     rentDistributor,
     secondaryMarket,
+    confidentialGovernance,
     usdt,
     treasury,
   } = deployments;
@@ -33,6 +34,12 @@ async function main() {
   await verify(secondaryMarket, "contracts/market/SecondaryMarket.sol:SecondaryMarket", [
     cestToken, usdt, treasury, registry,
   ]);
+
+  if (confidentialGovernance) {
+    await verify(confidentialGovernance, "contracts/governance/ConfidentialGovernance.sol:ConfidentialGovernance", [
+      registry,
+    ]);
+  }
 
   console.log("\nAll contracts verified.");
 }
