@@ -32,7 +32,19 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 | Challenge | Status |
 |-----------|--------|
 | **ChainGPT** — AI-powered Web3 product | ✅ ChainGPT SDK integrated (AIChatbot) |
-| **iExec Nox** — ERC-7984 Confidential Tokens | ✅ PropertyToken uses ERC-7984 encrypted balances |
+| **iExec Nox** — ERC-7984 Confidential Tokens | ✅ All 5 utility types implemented |
+
+### Confidential Token Utility — iExec Nox ERC-7984
+
+`PropertyToken` is an ERC-7984 confidential token. Its encrypted balance is used across 5 utility types required by the challenge:
+
+| Utility | Implementation | Contract |
+|---------|---------------|----------|
+| **Private Payments** | `SecondaryMarket.executeBuy()` calls `confidentialTransferFrom` — token amounts move between seller and buyer without any observer seeing the quantity | `SecondaryMarket.sol` |
+| **Rewards** | Rental income (USDT) is distributed to all registered `PropertyToken` holders. Equal-share model preserves privacy — on-chain events reveal only the total, never per-investor amounts | `RentDistributor.sol` |
+| **Governance** | Registered holders create and vote on property proposals (rent adjustments, maintenance, status changes). Each holder gets 1 vote — balance privacy means no whale dominance is visible | `ConfidentialGovernance.sol` |
+| **Access Control** | `onlyHolder` modifier in `ConfidentialGovernance` gates all proposals and votes to verified `PropertyToken` holders only, checked via `registry.isHolder()` | `ConfidentialGovernance.sol` |
+| **In-App Currency** | `PropertyToken` is the native unit of account for all platform actions: primary purchase, secondary trading, rent eligibility, and governance weight | `PropertyToken.sol` |
 
 ---
 
