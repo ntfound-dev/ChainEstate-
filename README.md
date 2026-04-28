@@ -179,11 +179,12 @@ The iExec **Handle Gateway** (Intel TDX TEE) is the only entity that can compute
 
 | Contract | Address |
 |----------|---------|
-| CESTToken | *see deployments.json* |
-| PropertyRegistry | *see deployments.json* |
-| RentDistributor | *see deployments.json* |
-| SecondaryMarket | *see deployments.json* |
-| Demo PropertyToken | *see deployments.json* |
+| CESTToken | [`0xD57f88B64611dBf74f87FC40f2F1010320483584`](https://sepolia.arbiscan.io/address/0xD57f88B64611dBf74f87FC40f2F1010320483584) |
+| PropertyRegistry | [`0xbED7ad48984fBb3984F5aF83E176fb9f40dB37cc`](https://sepolia.arbiscan.io/address/0xbED7ad48984fBb3984F5aF83E176fb9f40dB37cc) |
+| RentDistributor | [`0xCc6296557c05ca02f3258DEd19f4104a9C19a80B`](https://sepolia.arbiscan.io/address/0xCc6296557c05ca02f3258DEd19f4104a9C19a80B) |
+| SecondaryMarket | [`0x1288dF9F55673cBFc97BCe7aD5445D77B9029B92`](https://sepolia.arbiscan.io/address/0x1288dF9F55673cBFc97BCe7aD5445D77B9029B92) |
+| Demo PropertyToken (Pearl Dubai) | [`0x6DA3c5DABA3a18FEeD396f25b857be77B497A55A`](https://sepolia.arbiscan.io/address/0x6DA3c5DABA3a18FEeD396f25b857be77B497A55A) |
+| MockERC20 (USDT testnet) | [`0xcE265E23aAc349cEf9Fa3CC058062A44080f2289`](https://sepolia.arbiscan.io/address/0xcE265E23aAc349cEf9Fa3CC058062A44080f2289) |
 
 ---
 
