@@ -49,3 +49,8 @@ deployments.local.json
 
 # temp scaffold
 chainestate-temp/
+
+# internal planning docs
+plan.md
+planfrontend.md
+plansc.md
