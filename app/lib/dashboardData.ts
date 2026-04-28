@@ -43,19 +43,20 @@ export const DASHBOARD_HOLDINGS = [
   },
 ]
 
+// 12-month rolling history ending Apr 2026 (current month). All USDT.
 export const DASHBOARD_INCOME_SERIES = [
-  { month: 'Apr', amount: 22.4, encryptedLabel: '$•••', source: 'Pearl Residences' },
-  { month: 'May', amount: 24.8, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
-  { month: 'Jun', amount: 23.9, encryptedLabel: '$•••', source: 'Pearl Residences' },
-  { month: 'Jul', amount: 27.1, encryptedLabel: '$•••', source: 'Marina Heights' },
-  { month: 'Aug', amount: 26.6, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
-  { month: 'Sep', amount: 28.2, encryptedLabel: '$•••', source: 'Pearl Residences' },
-  { month: 'Oct', amount: 29.5, encryptedLabel: '$•••', source: 'Marina Heights' },
-  { month: 'Nov', amount: 28.1, encryptedLabel: '$•••', source: 'Pearl Residences' },
-  { month: 'Dec', amount: 31.2, encryptedLabel: '$•••', source: 'Holiday rebook yield' },
-  { month: 'Jan', amount: 29.4, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
-  { month: 'Feb', amount: 32.5, encryptedLabel: '$•••', source: 'Marina Heights' },
-  { month: 'Mar', amount: 30.8, encryptedLabel: '$•••', source: 'Pearl Residences' },
+  { month: "Apr '25", amount: 22.4, encryptedLabel: '$•••', source: 'Pearl Residences' },
+  { month: "May '25", amount: 24.8, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
+  { month: "Jun '25", amount: 23.9, encryptedLabel: '$•••', source: 'Pearl Residences' },
+  { month: "Jul '25", amount: 27.1, encryptedLabel: '$•••', source: 'Marina Heights' },
+  { month: "Aug '25", amount: 26.6, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
+  { month: "Sep '25", amount: 28.2, encryptedLabel: '$•••', source: 'Pearl Residences' },
+  { month: "Oct '25", amount: 29.5, encryptedLabel: '$•••', source: 'Marina Heights' },
+  { month: "Nov '25", amount: 28.1, encryptedLabel: '$•••', source: 'Pearl Residences' },
+  { month: "Dec '25", amount: 31.2, encryptedLabel: '$•••', source: 'Holiday rebook yield' },
+  { month: "Jan '26", amount: 29.4, encryptedLabel: '$•••', source: 'Shibuya Terrace' },
+  { month: "Feb '26", amount: 32.5, encryptedLabel: '$•••', source: 'Marina Heights' },
+  { month: "Mar '26", amount: 30.8, encryptedLabel: '$•••', source: 'Pearl Residences' },
 ]
 
 export const DASHBOARD_ACTIVITY = [
@@ -104,21 +105,22 @@ export const DASHBOARD_PROPOSALS = [
   },
 ]
 
+// Full addresses stored encrypted off-chain; display format is truncated for UI
 export const DASHBOARD_TRANSFER_CONTACTS = [
   {
-    label: 'Treasury cold wallet',
-    address: '0x19a4...92f1',
-    note: 'Internal treasury settlement',
+    label:   'Treasury cold wallet',
+    address: '0x19A4c8F3Bde2E7a1C5D0e8FbA3917c60429e92f1',
+    note:    'Internal treasury settlement',
   },
   {
-    label: 'Family office vault',
-    address: '0x72c3...0e4b',
-    note: 'Whitelisted recipient',
+    label:   'Family office vault',
+    address: '0x72C3a5F0Dce1B9847Ab2F3Ec60D174A881220e4b',
+    note:    'Whitelisted recipient',
   },
   {
-    label: 'Secondary market escrow',
-    address: '0xb884...118d',
-    note: 'Confidential OTC handoff',
+    label:   'Secondary market escrow',
+    address: '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa',
+    note:    'SecondaryMarket.sol escrow — Arbitrum Sepolia',
   },
 ]
 

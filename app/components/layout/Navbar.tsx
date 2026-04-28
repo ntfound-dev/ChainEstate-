@@ -10,6 +10,8 @@ const NAV_LINKS = [
   { href: '/properties', label: 'Properties' },
   { href: '/market', label: 'Market' },
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/airdrop', label: 'Airdrop' },
+  { href: '/faucet', label: 'Faucet' },
 ]
 
 export function Navbar() {

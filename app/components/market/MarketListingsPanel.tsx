@@ -78,15 +78,25 @@ export function MarketListingsPanel({
                 onClick={() => onSelect(listing, mode)}
               >
                 <div>
-                  <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>
-                    {listing.ticker}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>
+                      {listing.ticker}
+                    </p>
+                    {listing.isDex && (
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[8px] font-body uppercase tracking-wider"
+                        style={{ background: 'rgba(212,175,55,0.12)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.3)' }}
+                      >
+                        GOV
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs font-body" style={{ color: 'var(--text-ghost)' }}>
                     {listing.name}
                   </p>
                 </div>
                 <p className="font-data text-sm" style={{ color: 'var(--text-primary)' }}>
-                  ${listing.lastPrice.toFixed(2)}
+                  ${listing.lastPrice < 1 ? listing.lastPrice.toFixed(3) : listing.lastPrice.toFixed(2)}
                 </p>
                 <p
                   className="font-data text-sm"
@@ -95,30 +105,47 @@ export function MarketListingsPanel({
                   {listing.changePositive ? '+' : ''}
                   {listing.change24h}% {listing.changePositive ? '▲' : '▼'}
                 </p>
-                <div className="flex items-center gap-2">
-                  <ConfidentialBadge size="sm" />
-                  <span className="text-xs font-body" style={{ color: 'var(--text-ghost)' }}>
-                    Private
+                <div className="flex flex-col">
+                  <span className="font-data text-xs" style={{ color: 'var(--text-primary)' }}>
+                    {listing.volume24h ? listing.volume24h.toLocaleString() : '—'}
+                  </span>
+                  <span className="text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>
+                    {listing.isDex ? 'CEST' : 'tokens'}
                   </span>
                 </div>
-                <button
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onSelect(listing, mode)
-                  }}
-                  className="rounded px-3 py-1.5 text-xs font-body transition-all duration-150"
-                  style={{ border: '1px solid var(--gold-dim)', color: 'var(--gold-primary)' }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.background = 'var(--gold-glow)'
-                    event.currentTarget.style.borderColor = 'var(--gold-primary)'
-                  }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.background = 'transparent'
-                    event.currentTarget.style.borderColor = 'var(--gold-dim)'
-                  }}
-                >
-                  Trade
-                </button>
+                {listing.isDex ? (
+                  <a
+                    href="https://app.uniswap.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded px-3 py-1.5 text-xs font-body transition-all duration-150 whitespace-nowrap"
+                    style={{ border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold-primary)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212,175,55,0.08)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                  >
+                    DEX ↗
+                  </a>
+                ) : (
+                  <button
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelect(listing, mode)
+                    }}
+                    className="rounded px-3 py-1.5 text-xs font-body transition-all duration-150"
+                    style={{ border: '1px solid var(--gold-dim)', color: 'var(--gold-primary)' }}
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.background = 'var(--gold-glow)'
+                      event.currentTarget.style.borderColor = 'var(--gold-primary)'
+                    }}
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.background = 'transparent'
+                      event.currentTarget.style.borderColor = 'var(--gold-dim)'
+                    }}
+                  >
+                    Trade
+                  </button>
+                )}
               </motion.div>
             ))}
           </div>

@@ -3,28 +3,34 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ConfidentialBadge } from '@/app/components/ui/ConfidentialBadge'
 import { WalletButton } from '@/app/components/web3/WalletButton'
-import type { HandleStatus, MarketListingView, TradeType } from './types'
+import type { HandleStatus, MarketListingView, TradeStep, TradeType } from './types'
 
 export function MarketTradePanel({
   selected,
   tradeType,
   amount,
+  sellPrice,
   total,
   isConnected,
   handleStatus,
+  tradeStep,
   onTradeTypeChange,
   onAmountChange,
+  onSellPriceChange,
   onExecute,
   onClear,
 }: {
   selected: MarketListingView | null
   tradeType: TradeType
   amount: string
+  sellPrice: string
   total: string
   isConnected: boolean
   handleStatus: HandleStatus
+  tradeStep: TradeStep
   onTradeTypeChange: (tradeType: TradeType) => void
   onAmountChange: (value: string) => void
+  onSellPriceChange: (value: string) => void
   onExecute: () => void
   onClear: () => void
 }) {
@@ -89,17 +95,61 @@ export function MarketTradePanel({
                 />
               </div>
 
-              <div className="rounded-lg p-3" style={{ background: 'var(--bg-elevated)' }}>
-                <div className="mb-2 flex justify-between text-xs font-body">
-                  <span style={{ color: 'var(--text-ghost)' }}>Price per token</span>
+              {tradeType === 'sell' && (
+                <div>
+                  <label className="mb-2 block text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
+                    Your ask price (USDT per token)
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.001"
+                    value={sellPrice}
+                    onChange={(event) => onSellPriceChange(event.target.value)}
+                    placeholder={selected.bid?.toFixed(3) ?? '1.000'}
+                    className="w-full rounded px-3 py-2.5 text-sm font-data bg-transparent focus:outline-none"
+                    style={{ border: '1px solid var(--border-visible)', color: 'var(--text-primary)' }}
+                    onFocus={(event) => (event.currentTarget.style.borderColor = 'var(--gold-primary)')}
+                    onBlur={(event) => (event.currentTarget.style.borderColor = 'var(--border-visible)')}
+                    aria-label="Sell price per token in USDT"
+                  />
+                  <p className="mt-1 text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>
+                    Market bid: ${selected.bid?.toFixed(3) ?? '—'} · Ask: ${selected.ask?.toFixed(3) ?? '—'}
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--bg-elevated)' }}>
+                <div className="flex justify-between text-xs font-body">
+                  <span style={{ color: 'var(--text-ghost)' }}>Last price</span>
                   <span className="font-data" style={{ color: 'var(--text-primary)' }}>
-                    ${selected.lastPrice.toFixed(2)} (market)
+                    ${selected.lastPrice.toFixed(3)}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs font-body">
-                  <span style={{ color: 'var(--text-ghost)' }}>Total</span>
+                {selected.bid !== undefined && selected.ask !== undefined && (
+                  <div className="flex justify-between text-xs font-body">
+                    <span style={{ color: 'var(--text-ghost)' }}>
+                      {tradeType === 'buy' ? 'You pay (ask)' : 'Market bid'}
+                    </span>
+                    <span className="font-data" style={{ color: tradeType === 'buy' ? 'var(--status-error)' : 'var(--nox-green)' }}>
+                      ${tradeType === 'buy' ? selected.ask!.toFixed(3) : selected.bid!.toFixed(3)}
+                    </span>
+                  </div>
+                )}
+                {selected.volume24h !== undefined && (
+                  <div className="flex justify-between text-xs font-body">
+                    <span style={{ color: 'var(--text-ghost)' }}>24h volume</span>
+                    <span className="font-data" style={{ color: 'var(--text-secondary)' }}>
+                      {selected.volume24h.toLocaleString()} tokens
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xs font-body border-t pt-2" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <span style={{ color: 'var(--text-ghost)' }}>
+                    {tradeType === 'buy' ? 'You pay' : 'You receive'}
+                  </span>
                   <span className="font-data" style={{ color: 'var(--gold-primary)' }}>
-                    ${total}
+                    ${total} USDT
                   </span>
                 </div>
               </div>
@@ -107,7 +157,7 @@ export function MarketTradePanel({
               <div className="flex items-center gap-2 rounded-lg p-3" style={{ background: 'var(--nox-green-dim)', border: '1px solid rgba(0,229,160,0.2)' }}>
                 <ConfidentialBadge size="sm" />
                 <span className="text-[10px] font-body" style={{ color: 'var(--text-secondary)' }}>
-                  Your holdings remain private
+                  {tradeType === 'buy' ? 'Balance encrypted after purchase' : 'Token amount hidden from buyers'}
                 </span>
               </div>
 
@@ -116,20 +166,29 @@ export function MarketTradePanel({
               ) : (
                 <button
                   onClick={onExecute}
-                  disabled={!amount || parseFloat(amount) <= 0}
+                  disabled={
+                    !amount ||
+                    parseFloat(amount) <= 0 ||
+                    (tradeType === 'sell' && (!sellPrice || parseFloat(sellPrice) <= 0)) ||
+                    tradeStep !== 'idle'
+                  }
                   className="w-full rounded px-4 py-3 text-sm btn-gold disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none"
+                  style={{
+                    background: tradeType === 'sell' ? 'var(--status-error)' : undefined,
+                    borderColor: tradeType === 'sell' ? 'var(--status-error)' : undefined,
+                  }}
                 >
-                  🔒 Encrypt & Execute
+                  {tradeStep === 'approving'  ? '⏳ Approving USDT...'  :
+                   tradeStep === 'executing'  ? '⏳ Executing buy...'   :
+                   tradeStep === 'granting'   ? '⏳ Granting operator...' :
+                   tradeStep === 'listing'    ? '⏳ Creating listing...' :
+                   tradeType === 'buy'        ? '⚡ Buy Now'            :
+                                               '📋 List for Sale'}
                 </button>
               )}
 
               <p className="text-[10px] font-body text-center" style={{ color: 'var(--text-ghost)' }}>
-                Platform fee: 0.5%
-              </p>
-              <p className="text-[10px] font-body text-center leading-relaxed" style={{ color: handleStatus === 'ready' ? 'var(--nox-green)' : 'var(--text-ghost)' }}>
-                {handleStatus === 'ready'
-                  ? 'Trade input encryption is routed through @iexec-nox/handle before settlement.'
-                  : 'Connect on Arbitrum Sepolia to initialize the official iExec Nox SDK trade flow.'}
+                Platform fee: 0.5% · Powered by SecondaryMarket.sol
               </p>
             </div>
           </motion.div>

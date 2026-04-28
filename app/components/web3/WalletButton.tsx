@@ -1,7 +1,7 @@
 'use client'
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export function WalletButton() {
@@ -9,6 +9,17 @@ export function WalletButton() {
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent SSR/client HTML mismatch — wagmi state is only known client-side
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) {
+    return (
+      <button className="px-4 py-2 rounded text-xs font-body btn-ghost opacity-0 pointer-events-none" aria-hidden>
+        Connect Wallet
+      </button>
+    )
+  }
 
   if (isConnected && address) {
     return (

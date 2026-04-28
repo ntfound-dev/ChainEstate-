@@ -1,87 +1,158 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useWriteContract, usePublicClient } from 'wagmi'
+import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { MarketHeader } from '../components/market/MarketHeader'
 import { MarketListingsPanel } from '../components/market/MarketListingsPanel'
 import { MarketTradePanel } from '../components/market/MarketTradePanel'
-import type { MarketListingView, TradeType } from '../components/market/types'
+import type { MarketListingView, TradeStep, TradeType } from '../components/market/types'
 import { TransactionModal } from '../components/ui/TransactionModal'
 import { useToast } from '../components/ui/Toast'
 import { useNoxHandleClient } from '../components/web3/useNoxHandleClient'
-import { MARKET_LISTINGS } from '../lib/marketData'
+import { MARKET_LISTINGS, CEST_LISTING } from '../lib/marketData'
 import { PROPERTIES } from '../lib/propertiesData'
+import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '../lib/contracts'
 
 export default function MarketPage() {
   const { isConnected } = useAccount()
   const { showToast } = useToast()
-  const { handleClient, status: handleStatus, error: handleError } = useNoxHandleClient()
+  const { handleClient, status: handleStatus } = useNoxHandleClient()
+  const { writeContractAsync } = useWriteContract()
+  const publicClient = usePublicClient()
+
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<MarketListingView | null>(null)
   const [tradeType, setTradeType] = useState<TradeType>('buy')
   const [amount, setAmount] = useState('')
+  const [sellPrice, setSellPrice] = useState('')
+  const [tradeStep, setTradeStep] = useState<TradeStep>('idle')
   const [txOpen, setTxOpen] = useState(false)
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [mode, setMode] = useState<TradeType>('buy')
 
-  const filtered = MARKET_LISTINGS.filter(
+  // CEST always at top; property tokens filterable by search
+  const allListings = [CEST_LISTING, ...MARKET_LISTINGS]
+  const filtered = allListings.filter(
     (listing) =>
       listing.ticker.toLowerCase().includes(search.toLowerCase()) ||
       listing.name.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const total = amount && selected ? (parseFloat(amount) * selected.lastPrice).toFixed(2) : '0.00'
+  // Total cost: buy uses ask price, sell uses user-entered price
+  const tradePrice = tradeType === 'buy'
+    ? (selected?.ask ?? selected?.lastPrice ?? 0)
+    : (parseFloat(sellPrice) || 0)
+  const total = amount && selected ? (parseFloat(amount) * tradePrice).toFixed(2) : '0.00'
 
   const handleExecute = async () => {
-    if (!amount || parseFloat(amount) <= 0) return
+    if (!amount || parseFloat(amount) <= 0 || !selected) return
 
-    const selectedProperty = PROPERTIES.find((property) => property.ticker === selected?.ticker)
-    if (!selectedProperty) {
-      showToast('Property contract missing', 'This listing is not mapped to a confidential token contract yet.', 'error')
+    const property = PROPERTIES.find(p => p.ticker === selected.ticker)
+    if (!property) {
+      showToast('Property not found', 'This listing is not mapped to a deployed contract.', 'error')
       return
     }
 
-    if (!handleClient) {
-      showToast(
-        'Nox handle client not ready',
-        handleStatus === 'initializing'
-          ? 'Waiting for the iExec Nox SDK to initialize on Arbitrum Sepolia.'
-          : handleError ?? 'Reconnect your wallet to prepare confidential trade inputs.',
-        'warning',
-      )
-      return
-    }
+    const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
 
     try {
-      const encryptedPayload = await handleClient.encryptInput(
-        BigInt(Math.max(1, Math.trunc(Number(amount)))),
-        'uint256',
-        selectedProperty.contractAddress as `0x${string}`,
-      )
+      if (tradeType === 'buy') {
+        // ── Secondary market BUY: approve USDT → executeBuy ──────────────
+        if (!selected.listingId) {
+          showToast('No listing ID', 'This listing does not have an on-chain ID yet.', 'error')
+          return
+        }
 
-      showToast(
-        'Trade payload encrypted',
-        `Handle ${encryptedPayload.handle.slice(0, 10)}... staged for ${selectedProperty.ticker}.`,
-        'info',
-      )
-    } catch (error) {
-      showToast(
-        'Nox encryption failed',
-        error instanceof Error ? error.message : 'Unable to encrypt the confidential trade amount.',
-        'error',
-      )
-      return
+        // Price is in USDT 6 decimals: ask × 1_000_000, rounded
+        const priceUsdt6 = BigInt(Math.round(tradePrice * 1_000_000))
+        const totalUsdt = tokenAmount * priceUsdt6
+
+        setTradeStep('approving')
+        showToast('Approve USDT', 'Step 1/2 — approve USDT for the secondary market.', 'info')
+
+        const approveTx = await writeContractAsync({
+          address: ADDRESSES.usdt,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [ADDRESSES.secondaryMarket, totalUsdt],
+        })
+        await publicClient!.waitForTransactionReceipt({ hash: approveTx })
+
+        setTradeStep('executing')
+        showToast('Execute buy', 'Step 2/2 — confirm purchase in your wallet.', 'info')
+
+        const buyTx = await writeContractAsync({
+          address: ADDRESSES.secondaryMarket,
+          abi: SECONDARY_MARKET_ABI,
+          functionName: 'executeBuy',
+          args: [BigInt(selected.listingId)],
+        })
+        await publicClient!.waitForTransactionReceipt({ hash: buyTx })
+
+        setTxHash(buyTx)
+        setTradeStep('done')
+        setTxOpen(true)
+        showToast('Buy complete!', `${amount} ${selected.ticker} · 🔒 Confidential`, 'success')
+        setAmount('')
+
+      } else {
+        // ── Secondary market SELL: grantOperator → createListing ─────────
+        if (!sellPrice || parseFloat(sellPrice) <= 0) {
+          showToast('Enter a price', 'Set your ask price per token in USDT.', 'warning')
+          return
+        }
+
+        // Price must be in USDT 6 decimals: e.g. $1.025 → 1_025_000
+        const pricePerTokenUsdt = BigInt(Math.round(parseFloat(sellPrice) * 1_000_000))
+        // Operator expiry: 7 days from now
+        const expiry = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+
+        setTradeStep('granting')
+        showToast('Grant operator', 'Step 1/2 — allow the market to transfer your tokens.', 'info')
+
+        const grantTx = await writeContractAsync({
+          address: property.contractAddress as `0x${string}`,
+          abi: PROPERTY_TOKEN_ABI,
+          functionName: 'grantOperator',
+          args: [ADDRESSES.secondaryMarket, expiry],
+        })
+        await publicClient!.waitForTransactionReceipt({ hash: grantTx })
+
+        setTradeStep('listing')
+        showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
+
+        const listTx = await writeContractAsync({
+          address: ADDRESSES.secondaryMarket,
+          abi: SECONDARY_MARKET_ABI,
+          functionName: 'createListing',
+          args: [
+            property.contractAddress as `0x${string}`,
+            BigInt(property.tokenId),
+            tokenAmount,
+            pricePerTokenUsdt,
+          ],
+        })
+        await publicClient!.waitForTransactionReceipt({ hash: listTx })
+
+        setTxHash(listTx)
+        setTradeStep('done')
+        setTxOpen(true)
+        showToast(
+          'Listed!',
+          `${amount} ${property.ticker} @ $${sellPrice} USDT/token · Live on SecondaryMarket.sol`,
+          'success'
+        )
+        setAmount('')
+        setSellPrice('')
+      }
+    } catch (err) {
+      setTradeStep('error')
+      const msg = err instanceof Error ? err.message : 'Transaction failed.'
+      showToast('Transaction failed', msg.length > 120 ? msg.slice(0, 120) + '…' : msg, 'error')
+    } finally {
+      setTimeout(() => setTradeStep('idle'), 3000)
     }
-
-    setTxOpen(true)
-    setTimeout(() => {
-      setTxOpen(false)
-      showToast(
-        `${tradeType === 'buy' ? 'Buy' : 'Sell'} order executed!`,
-        `${amount} ${selected?.ticker} · 🔒 Confidential`,
-        'success',
-      )
-      setAmount('')
-    }, 6500)
   }
 
   return (
@@ -99,6 +170,8 @@ export default function MarketPage() {
             onSelect={(listing, nextTradeType) => {
               setSelected(listing)
               setTradeType(nextTradeType)
+              setAmount('')
+              setSellPrice('')
             }}
           />
 
@@ -106,13 +179,16 @@ export default function MarketPage() {
             selected={selected}
             tradeType={tradeType}
             amount={amount}
+            sellPrice={sellPrice}
             total={total}
             isConnected={isConnected}
             handleStatus={handleStatus}
-            onTradeTypeChange={setTradeType}
+            tradeStep={tradeStep}
+            onTradeTypeChange={(t) => { setTradeType(t); setAmount(''); setSellPrice('') }}
             onAmountChange={setAmount}
+            onSellPriceChange={setSellPrice}
             onExecute={handleExecute}
-            onClear={() => setSelected(null)}
+            onClear={() => { setSelected(null); setAmount(''); setSellPrice('') }}
           />
         </div>
       </div>
@@ -120,7 +196,7 @@ export default function MarketPage() {
       <TransactionModal
         isOpen={txOpen}
         onClose={() => setTxOpen(false)}
-        txHash="0x7f3a1b2c4d5e6f7890abcdef1234567890abcd"
+        txHash={txHash ?? '0x0000000000000000000000000000000000000000000000000000000000000000'}
       />
     </div>
   )

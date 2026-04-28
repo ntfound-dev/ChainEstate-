@@ -1,16 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useAccount } from 'wagmi'
+import { useWriteContract, usePublicClient } from 'wagmi'
+import { useClientAccount as useAccount } from '../../components/web3/useClientAccount'
 import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
 import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
 import { useNoxHandleClient } from '../../components/web3/useNoxHandleClient'
 import { PROPERTIES } from '../../lib/propertiesData'
+import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '../../lib/contracts'
 
 const ACTIVITY = [
   { date: '2026/03/18 14:22', type: 'Token Purchase' },
@@ -18,63 +20,106 @@ const ACTIVITY = [
   { date: '2026/03/10 11:44', type: 'Token Purchase' },
 ]
 
+type BuyStep = 'idle' | 'encrypting' | 'approving' | 'purchasing' | 'done' | 'error'
+
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
   const { isConnected } = useAccount()
   const { showToast } = useToast()
   const { handleClient, status: handleStatus, error: handleError } = useNoxHandleClient()
+  const { writeContractAsync } = useWriteContract()
+  const publicClient = usePublicClient()
   const mapQuery = encodeURIComponent(property.location)
 
   const [amount, setAmount] = useState('')
   const [activeImage, setActiveImage] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const [txOpen, setTxOpen] = useState(false)
-  const [step, setStep] = useState(0) // 0=idle 1=encrypting 2=sending 3=tee
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
+  const [buyStep, setBuyStep] = useState<BuyStep>('idle')
+  const noxToastShown = useRef(false)
 
   const totalCost = amount ? (parseFloat(amount) * property.pricePerToken).toFixed(2) : '0.00'
+
+  const noxBusy = handleStatus === 'initializing'
+  const buying   = buyStep !== 'idle' && buyStep !== 'done' && buyStep !== 'error'
 
   const handleBuy = async () => {
     if (!amount || parseFloat(amount) <= 0) return
 
     if (!handleClient) {
-      showToast(
-        'Nox handle client not ready',
-        handleStatus === 'initializing'
-          ? 'Waiting for the iExec Nox SDK to initialize on Arbitrum Sepolia.'
-          : handleError ?? 'Reconnect your wallet to prepare confidential inputs.',
-        'warning'
-      )
+      if (!noxToastShown.current) {
+        noxToastShown.current = true
+        showToast(
+          'Nox SDK initializing',
+          noxBusy
+            ? 'iExec Nox is connecting to Arbitrum Sepolia — try again in a moment.'
+            : handleError ?? 'Reconnect your wallet on Arbitrum Sepolia.',
+          'warning'
+        )
+        setTimeout(() => { noxToastShown.current = false }, 4000)
+      }
       return
     }
 
+    const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
+    // USDT has 6 decimals; 1 token = 1 USDT = 1_000_000
+    const totalCostUsdt = tokenAmount * 1_000_000n
+
     try {
-      const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
-      const encryptedPayload = await handleClient.encryptInput(
+      // ── Step 1: Encrypt via iExec Nox TEE ──────────────────────────────
+      setBuyStep('encrypting')
+      showToast('🔒 Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
+
+      const { handle, handleProof } = await handleClient.encryptInput(
         tokenAmount,
         'uint256',
         property.contractAddress as `0x${string}`
       )
 
-      showToast(
-        'Encrypted payload prepared',
-        `Handle ${encryptedPayload.handle.slice(0, 10)}... ready for ${property.ticker}.`,
-        'info'
-      )
-    } catch (error) {
-      showToast(
-        'Nox encryption failed',
-        error instanceof Error ? error.message : 'Unable to encrypt the confidential token amount.',
-        'error'
-      )
-      return
-    }
+      // ── Step 2: Approve USDT spend ─────────────────────────────────────
+      setBuyStep('approving')
+      showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
-    setTxOpen(true)
-    setTimeout(() => {
-      setTxOpen(false)
-      showToast('Tokens purchased successfully!', 'Balance updated · 🔒 Confidential', 'success')
+      const approveTxHash = await writeContractAsync({
+        address: ADDRESSES.usdt,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [property.contractAddress as `0x${string}`, totalCostUsdt],
+      })
+
+      await publicClient!.waitForTransactionReceipt({ hash: approveTxHash })
+
+      // ── Step 3: Purchase tokens on-chain ───────────────────────────────
+      setBuyStep('purchasing')
+      showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
+
+      const purchaseTxHash = await writeContractAsync({
+        address: property.contractAddress as `0x${string}`,
+        abi: PROPERTY_TOKEN_ABI,
+        functionName: 'purchaseTokens',
+        args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount],
+      })
+
+      await publicClient!.waitForTransactionReceipt({ hash: purchaseTxHash })
+
+      setTxHash(purchaseTxHash)
+      setBuyStep('done')
+      setTxOpen(true)
+      showToast(
+        'Tokens purchased!',
+        `${amount} ${property.ticker} · Balance encrypted 🔒`,
+        'success'
+      )
       setAmount('')
-    }, 6500)
+    } catch (err) {
+      setBuyStep('error')
+      const msg = err instanceof Error ? err.message : 'Transaction failed.'
+      const shortMsg = msg.length > 120 ? msg.slice(0, 120) + '…' : msg
+      showToast('Transaction failed', shortMsg, 'error')
+    } finally {
+      setTimeout(() => setBuyStep('idle'), 3000)
+    }
   }
 
   return (
@@ -214,6 +259,76 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               </p>
             </motion.div>
 
+            {/* NFT Metadata card */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.23 }}
+              className="mb-8 rounded-xl overflow-hidden"
+              style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}
+            >
+              <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: '1px solid rgba(212,175,55,0.15)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🖼️</span>
+                  <span className="font-display text-sm" style={{ color: 'var(--gold-primary)' }}>NFT Metadata</span>
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[9px] font-body uppercase tracking-wider"
+                    style={{ background: 'rgba(212,175,55,0.12)', color: 'var(--gold-primary)' }}
+                  >
+                    {property.tokenStandard}
+                  </span>
+                </div>
+                {/* Metadata served by our own API — no fake IPFS link */}
+                <a
+                  href={`/api/nft/${property.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-body transition-opacity hover:opacity-70"
+                  style={{ color: 'var(--gold-primary)' }}
+                >
+                  ↗ View Metadata JSON
+                </a>
+              </div>
+              <div className="grid grid-cols-2 gap-px sm:grid-cols-4" style={{ background: 'rgba(212,175,55,0.1)' }}>
+                {[
+                  { label: 'Token ID',   value: `#${property.tokenId}` },
+                  { label: 'Standard',   value: property.tokenStandard },
+                  { label: 'Chain',      value: 'Arbitrum Sepolia' },
+                  { label: 'Contract',   value: property.deployed ? `${property.contractAddress.slice(0, 8)}…` : 'Pending' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="px-4 py-3" style={{ background: 'rgba(8,8,16,0.6)' }}>
+                    <p className="mb-1 text-[9px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>{label}</p>
+                    <p className="font-data text-xs" style={{ color: 'var(--text-primary)' }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 py-3 flex items-center justify-between">
+                {property.deployed ? (
+                  <>
+                    <span className="text-[10px] font-data" style={{ color: 'var(--text-ghost)' }}>
+                      {property.contractAddress.slice(0, 14)}…{property.contractAddress.slice(-8)}
+                    </span>
+                    <a
+                      href={`https://sepolia.arbiscan.io/token/${property.contractAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-body transition-opacity hover:opacity-70"
+                      style={{ color: 'var(--gold-primary)' }}
+                    >
+                      ↗ Arbiscan
+                    </a>
+                  </>
+                ) : (
+                  <span
+                    className="text-[10px] font-body rounded px-2 py-0.5"
+                    style={{ background: 'rgba(212,175,55,0.08)', color: 'var(--text-ghost)', border: '1px solid rgba(212,175,55,0.15)' }}
+                  >
+                    ⏳ Contract deployment pending
+                  </span>
+                )}
+              </div>
+            </motion.div>
+
             {/* Documents */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -222,9 +337,9 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               className="mb-8"
             >
               <div className="flex items-center justify-between gap-3 mb-4">
-                <h2 className="font-display text-lg" style={{ color: 'var(--text-primary)' }}>Documents</h2>
+                <h2 className="font-display text-lg" style={{ color: 'var(--text-primary)' }}>Legal Documents</h2>
                 <span className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>
-                  {property.documents.length} files on IPFS
+                  {property.documents.length} files · pending IPFS pin
                 </span>
               </div>
               <div className="space-y-2">
@@ -236,17 +351,31 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-sm">📄</span>
-                      <span className="text-xs font-body" style={{ color: 'var(--text-primary)' }}>{doc.name}</span>
+                      <div>
+                        <p className="text-xs font-body" style={{ color: 'var(--text-primary)' }}>{doc.name}</p>
+                        <p className="text-[10px] font-data mt-0.5" style={{ color: 'var(--text-ghost)' }}>
+                          {doc.cid.slice(0, 14)}… · {doc.size}
+                        </p>
+                      </div>
                     </div>
-                    <a
-                      href={`https://ipfs.io/ipfs/${doc.hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-body transition-opacity hover:opacity-70"
-                      style={{ color: 'var(--gold-primary)' }}
-                    >
-                      ↗ IPFS
-                    </a>
+                    {doc.pinned ? (
+                      <a
+                        href={`https://ipfs.io/ipfs/${doc.cid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-body transition-opacity hover:opacity-70 shrink-0"
+                        style={{ color: 'var(--gold-primary)' }}
+                      >
+                        ↗ IPFS
+                      </a>
+                    ) : (
+                      <span
+                        className="text-[10px] font-body rounded px-2 py-0.5 shrink-0"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-ghost)', border: '1px solid var(--border-subtle)' }}
+                      >
+                        Pinning soon
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -388,10 +517,26 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 <div className="space-y-3">
                   <button
                     onClick={handleBuy}
-                    disabled={!amount || parseFloat(amount) <= 0 || property.status === 'sold_out'}
+                    disabled={
+                      !amount ||
+                      parseFloat(amount) <= 0 ||
+                      property.status === 'sold_out' ||
+                      noxBusy ||
+                      buying
+                    }
                     className="w-full py-3 px-4 rounded text-sm btn-gold disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    {property.status === 'sold_out' ? 'Sold Out' : '🔒 Encrypt & Buy'}
+                    {property.status === 'sold_out'
+                      ? 'Sold Out'
+                      : buyStep === 'encrypting'
+                        ? '🔒 Encrypting...'
+                        : buyStep === 'approving'
+                          ? '⏳ Approving USDT...'
+                          : buyStep === 'purchasing'
+                            ? '⏳ Purchasing...'
+                            : noxBusy
+                              ? '⏳ Connecting to Nox...'
+                              : '🔒 Encrypt & Buy'}
                   </button>
                   <button className="w-full py-2.5 px-4 rounded text-sm font-body btn-ghost">
                     Buy with Fiat →

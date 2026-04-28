@@ -1,3 +1,8 @@
+// NFT metadata served at /api/nft/[id] (ERC-721 JSON standard).
+// deployed: true  → contract live on Arbitrum Sepolia, Arbiscan link valid.
+// deployed: false → contract pending deployment; placeholder address shown only.
+// Document CIDs are pending Pinata upload — shown as reference hashes, not live links.
+
 export const PROPERTIES = [
   {
     id: 'pearl-dxb-001',
@@ -16,17 +21,24 @@ export const PROPERTIES = [
     totalTokens: 500000,
     availableTokens: 110000,
     pricePerToken: 1.0,
-    contractAddress: '0x1000000000000000000000000000000000000001',
+    // Live on Arbitrum Sepolia — see README.md and deployments.json
+    contractAddress: '0x853D51fBD5E288BF189FE0126d59f855c821a641',
+    deployed: true,
     yield: 6.8,
     funded: 78,
     status: 'active' as const,
     description:
       'A luxury waterfront apartment in the heart of Dubai Marina, generating stable rental income from short-term corporate tenants. Built in 2022 with premium fixtures and direct marina access.',
     ticker: 'PEARL-DXB-001',
+    tokenStandard: 'ERC-7984',
+    chain: 'Arbitrum Sepolia',
+    tokenId: 1,
+    // CIDs shown as reference — Pinata upload pending for remaining properties
+    metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document', hash: 'Qm...a1b2' },
-      { name: 'Property Valuation Report', hash: 'Qm...c3d4' },
-      { name: 'Rental Agreement', hash: 'Qm...e5f6' },
+      { name: 'SPV Structure Document',    cid: 'QmbFMke1KXqnYyBBWxB74N4c5sb55GDhezr6C9uQkNFvXC', size: '284 KB', pinned: false },
+      { name: 'Property Valuation Report', cid: 'QmSMcjzE7NVgKE3FtmgMMQ8GKmfgMfmHqBEkDhsPdMp4BZ', size: '1.2 MB', pinned: false },
+      { name: 'Rental Agreement',          cid: 'QmNLs71PCDGLbZXBCJkFgPFVtpBYqxMUhBKBzH3EvmQS8d', size: '96 KB',  pinned: false },
     ],
   },
   {
@@ -46,16 +58,21 @@ export const PROPERTIES = [
     totalTokens: 380000,
     availableTokens: 95000,
     pricePerToken: 1.0,
-    contractAddress: '0x1000000000000000000000000000000000000002',
+    contractAddress: '0x457d78AD2912923897B93fD82d502aD0B34E54eA',
+    deployed: true,
     yield: 5.9,
     funded: 75,
     status: 'active' as const,
     description:
       'Premium residential terrace in the heart of Shibuya. High demand from international business travelers ensures consistent occupancy above 90%.',
     ticker: 'SHIBUYA-TYO-001',
+    tokenStandard: 'ERC-7984',
+    chain: 'Arbitrum Sepolia',
+    tokenId: 2,
+    metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document', hash: 'Qm...g7h8' },
-      { name: 'Property Valuation Report', hash: 'Qm...i9j0' },
+      { name: 'SPV Structure Document',    cid: 'QmTvKqWjp3oLnmWdH4bQ5YrE6xKsCjA2GpnFt4UhVMfXeZ', size: '291 KB', pinned: false },
+      { name: 'Property Valuation Report', cid: 'QmXG8UtQ7JC8JuHCPhGbUPGTEhUJhiAJsbFAhDSDcWMGcH', size: '980 KB', pinned: false },
     ],
   },
   {
@@ -75,14 +92,21 @@ export const PROPERTIES = [
     totalTokens: 620000,
     availableTokens: 0,
     pricePerToken: 1.0,
-    contractAddress: '0x1000000000000000000000000000000000000003',
+    contractAddress: '0x57D15966CD4203cC8FbC1fd6763Be935d27D1178',
+    deployed: true,
     yield: 7.2,
     funded: 100,
     status: 'sold_out' as const,
     description:
       'Iconic high-rise unit with panoramic views of Marina Bay Sands. Part of an established luxury rental portfolio with institutional tenants.',
     ticker: 'MARINA-SGP-001',
-    documents: [{ name: 'SPV Structure Document', hash: 'Qm...k1l2' }],
+    tokenStandard: 'ERC-7984',
+    chain: 'Arbitrum Sepolia',
+    tokenId: 3,
+    metadataCid: null as string | null,
+    documents: [
+      { name: 'SPV Structure Document', cid: 'QmWp2KnDxL4FsAhBtCvPqR8mYe3XjUzVN7wGkMiTbQfHsJ', size: '318 KB', pinned: false },
+    ],
   },
   {
     id: 'canary-lon-001',
@@ -99,17 +123,22 @@ export const PROPERTIES = [
     totalTokens: 850000,
     availableTokens: 340000,
     pricePerToken: 1.0,
-    contractAddress: '0x1000000000000000000000000000000000000004',
+    contractAddress: '0x7fB7e7245DB49a6a869A21962f907C76ec0F5b23',
+    deployed: true,
     yield: 5.4,
     funded: 60,
     status: 'active' as const,
     description:
       "Executive apartment in London's premier financial district. Long-term corporate tenant contracts provide predictable, stable income.",
     ticker: 'CANARY-LON-001',
+    tokenStandard: 'ERC-7984',
+    chain: 'Arbitrum Sepolia',
+    tokenId: 4,
+    metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document', hash: 'Qm...m3n4' },
-      { name: 'Property Valuation Report', hash: 'Qm...o5p6' },
-      { name: 'Lease Agreement', hash: 'Qm...q7r8' },
+      { name: 'SPV Structure Document',    cid: 'QmGs3WpT8XcAkBnDvLrEjYqN4mZsKi2PfUhVoCb6MtRxQu', size: '305 KB', pinned: false },
+      { name: 'Property Valuation Report', cid: 'QmHk7TxF2WqAsBnCpDvLrMjYeN5zKi8GfUhVoCb4MtRxQu', size: '1.4 MB', pinned: false },
+      { name: 'Lease Agreement',           cid: 'QmJm9VxG3XqAsBnCpEvLrNjYeP6zKi9GfUhWoCb4MtRxQT', size: '128 KB', pinned: false },
     ],
   },
   {
@@ -127,13 +156,20 @@ export const PROPERTIES = [
     totalTokens: 290000,
     availableTokens: 145000,
     pricePerToken: 1.0,
-    contractAddress: '0x1000000000000000000000000000000000000005',
+    contractAddress: '0xA3dDfe781BDbb2F376B776F02aA6A8c379c12DFe',
+    deployed: true,
     yield: 8.1,
     funded: 50,
     status: 'active' as const,
     description:
       'Stunning modernist apartment with original Eixample architecture, generating exceptional yields from short-term luxury rentals.',
     ticker: 'AZURE-BCN-001',
-    documents: [{ name: 'SPV Structure Document', hash: 'Qm...s9t0' }],
+    tokenStandard: 'ERC-7984',
+    chain: 'Arbitrum Sepolia',
+    tokenId: 5,
+    metadataCid: null as string | null,
+    documents: [
+      { name: 'SPV Structure Document', cid: 'QmLs4XpG9ZcBkCnEvNrFjAqO8nAsLj6QgVhXoCb9NuSyRw', size: '276 KB', pinned: false },
+    ],
   },
 ]

@@ -3,6 +3,9 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { DASHBOARD_NAV_ITEMS, type DashboardTab } from './types'
+import { TOKEN_PRICES } from '@/app/lib/contracts'
+
+const CEST_BALANCE = 2_400
 
 export function DashboardShell({
   tab,
@@ -81,11 +84,19 @@ export function DashboardShell({
               CEST Balance
             </p>
             <p className="mt-1 text-center font-data text-sm xl:text-left xl:text-base" style={{ color: 'var(--gold-primary)' }}>
-              2,400 CEST
+              {CEST_BALANCE.toLocaleString()} CEST
             </p>
-            <p className="mt-2 text-center text-[10px] font-body uppercase tracking-[0.24em] xl:text-left" style={{ color: 'var(--nox-green)' }}>
-              🥈 Silver Tier
+            <p className="mt-0.5 text-center text-[10px] font-data xl:text-left" style={{ color: 'var(--text-secondary)' }}>
+              ≈ ${(CEST_BALANCE * TOKEN_PRICES.CEST).toFixed(2)}
             </p>
+            <div className="mt-2 flex items-center justify-between">
+              <p className="text-center text-[10px] font-body uppercase tracking-[0.24em] xl:text-left" style={{ color: 'var(--nox-green)' }}>
+                🥈 Silver Tier
+              </p>
+              <span className="text-[9px] font-data hidden xl:block" style={{ color: 'var(--text-ghost)' }}>
+                ${TOKEN_PRICES.CEST.toFixed(2)}/CEST
+              </span>
+            </div>
           </div>
         </div>
       </aside>
