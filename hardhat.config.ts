@@ -9,8 +9,15 @@ dotenv.config();
 process.env.TS_NODE_PROJECT = "tsconfig.hardhat.json";
 
 const ARBITRUM_SEPOLIA_RPC = process.env.ARBITRUM_SEPOLIA_RPC || "https://sepolia-rollup.arbitrum.io/rpc";
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // Hardhat default
 const ARBISCAN_API_KEY = process.env.ARBISCAN_API_KEY || "";
+
+// Use env key only if it looks like a real 32-byte hex key; otherwise fall back
+// to Hardhat's well-known default account so local tests/compile always work.
+const RAW_KEY = process.env.PRIVATE_KEY || "";
+const PRIVATE_KEY =
+  RAW_KEY.replace(/^0x/, "").length === 64
+    ? RAW_KEY
+    : "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 const config: HardhatUserConfig = {
   solidity: {
