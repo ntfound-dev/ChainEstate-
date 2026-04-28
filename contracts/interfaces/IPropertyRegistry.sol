@@ -38,4 +38,10 @@ interface IPropertyRegistry {
 
     /// @notice Get all holders of a property
     function getPropertyHolders(uint256 propertyId) external view returns (address[] memory);
+
+    /// @notice Returns whether an address is a registered holder of a property
+    function isHolder(uint256 propertyId, address account) external view returns (bool);
+
+    /// @notice Returns the number of registered holders for a property
+    function getHolderCount(uint256 propertyId) external view returns (uint256);
 }

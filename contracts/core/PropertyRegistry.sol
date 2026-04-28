@@ -33,7 +33,7 @@ contract PropertyRegistry is Ownable, Pausable, ReentrancyGuard {
     mapping(uint256 => address[]) private propertyHolders;
 
     /// @dev Track whether an address is already registered as holder to avoid duplicates
-    mapping(uint256 => mapping(address => bool)) private isHolder;
+    mapping(uint256 => mapping(address => bool)) private _isHolder;
 
     address public rentDistributor;
     address public usdtToken;
@@ -158,8 +158,8 @@ contract PropertyRegistry is Ownable, Pausable, ReentrancyGuard {
         ) revert Unauthorized();
         if (holder == address(0)) revert ZeroAddress();
 
-        if (!isHolder[propertyId][holder]) {
-            isHolder[propertyId][holder] = true;
+        if (!_isHolder[propertyId][holder]) {
+            _isHolder[propertyId][holder] = true;
             propertyHolders[propertyId].push(holder);
             emit HolderRegistered(propertyId, holder);
         }
@@ -196,6 +196,18 @@ contract PropertyRegistry is Ownable, Pausable, ReentrancyGuard {
     function getPropertyHolders(uint256 propertyId) external view returns (address[] memory) {
         if (properties[propertyId].id == 0) revert PropertyNotFound(propertyId);
         return propertyHolders[propertyId];
+    }
+
+    /// @notice Returns whether an address is a registered holder of a property.
+    ///         Used by ConfidentialGovernance for access control gating.
+    function isHolder(uint256 propertyId, address account) external view returns (bool) {
+        return _isHolder[propertyId][account];
+    }
+
+    /// @notice Returns the number of registered holders for a property.
+    ///         Used by ConfidentialGovernance for quorum calculation.
+    function getHolderCount(uint256 propertyId) external view returns (uint256) {
+        return propertyHolders[propertyId].length;
     }
 
     // ============ Emergency ============
