@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/airdrop', label: 'Airdrop' },
   { href: '/faucet', label: 'Faucet' },
+  { href: '/docs', label: 'Docs' },
 ]
 
 export function Navbar() {
