@@ -226,6 +226,51 @@ npm run test
 
 ---
 
+## Makefile Commands
+
+All common tasks are wired into `make`. Run `make help` to see the full list.
+
+```bash
+make help             # Show all available commands
+```
+
+### Setup & Frontend
+| Command | Description |
+|---------|-------------|
+| `make install` | Install all Node dependencies |
+| `make dev` | Start Next.js frontend at `http://localhost:3000` |
+
+### Smart Contracts
+| Command | Description |
+|---------|-------------|
+| `make compile` | Compile all Solidity contracts |
+| `make test` | Run full test suite (60 tests) |
+| `make typecheck` | TypeScript type-check without emitting |
+
+### Local Development
+| Command | Description |
+|---------|-------------|
+| `make node` | Start a local Hardhat node (chainId 31337) |
+| `make deploy-local` | Deploy all contracts to local node |
+| `make seed-local` | Seed demo property data on local node |
+
+### Arbitrum Sepolia Testnet
+| Command | Description |
+|---------|-------------|
+| `make deploy-testnet` | Deploy contracts to Arbitrum Sepolia |
+| `make seed-testnet` | Seed demo data on Arbitrum Sepolia |
+| `make verify-testnet` | Verify contracts on Arbiscan |
+
+### Maintenance
+| Command | Description |
+|---------|-------------|
+| `make clean` | Remove `artifacts/`, `cache/`, `typechain-types/` |
+| `make rebuild` | Clean then recompile from scratch |
+
+> **Note:** `deploy-testnet` requires `PRIVATE_KEY` filled in `.env`. All other commands work without it.
+
+---
+
 ## Fee Structure
 
 | Action | Fee | CEST Discount |
