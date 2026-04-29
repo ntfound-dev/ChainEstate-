@@ -3,6 +3,9 @@ import { createWalletClient, http, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { arbitrumSepolia } from 'viem/chains'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 const USDT_ADDRESS = '0x9a822B9A50D090CfcCa1e6474efCd653112d8501' as const
 const CEST_ADDRESS = '0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D' as const
 
@@ -100,6 +103,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ txHash })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Transaction failed'
+    console.error('[faucet] tx error:', message, err)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
