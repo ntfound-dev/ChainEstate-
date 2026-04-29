@@ -68,19 +68,19 @@ function getErrorCode(err: unknown): number | undefined {
 }
 
 async function ensureArbitrumSepolia(eth: Ethereum) {
+  // Always try to update MetaMask's saved RPC to PRIMARY_RPC (Infura).
+  // wallet_addEthereumChain silently updates the chain config if it already exists.
+  try {
+    await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] })
+  } catch { /* ignore — MetaMask rejects if chain unchanged or user dismisses */ }
+
   if (await getChainId(eth) === arbitrumSepolia.id) return
 
   try {
-    await eth.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: ARBITRUM_SEPOLIA_PARAMS.chainId }],
-    })
+    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: ARBITRUM_SEPOLIA_PARAMS.chainId }] })
   } catch (err) {
     if (getErrorCode(err) !== 4902) throw err
-    await eth.request({
-      method: 'wallet_addEthereumChain',
-      params: [ARBITRUM_SEPOLIA_PARAMS],
-    })
+    await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] })
   }
 
   if (await getChainId(eth) !== arbitrumSepolia.id) {
@@ -88,32 +88,10 @@ async function ensureArbitrumSepolia(eth: Ethereum) {
   }
 }
 
-async function assertWalletRpcReady(eth: Ethereum) {
-  try {
-    await eth.request({ method: 'eth_blockNumber' })
-  } catch {
-    try {
-      await eth.request({
-        method: 'wallet_addEthereumChain',
-        params: [ARBITRUM_SEPOLIA_PARAMS],
-      })
-      await eth.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ARBITRUM_SEPOLIA_PARAMS.chainId }],
-      })
-      await eth.request({ method: 'eth_blockNumber' })
-    } catch {
-      throw new Error(
-        'Wallet RPC for Arbitrum Sepolia is unavailable. In MetaMask, re-add Arbitrum Sepolia with https://sepolia-rollup.arbitrum.io/rpc, then retry.',
-      )
-    }
-  }
-}
-
 function formatTransactionError(err: unknown): string {
   const msg = extractMsg(err)
   if (/RPC endpoint not found|RPC endpoint.*unavailable|wallet rpc|failed to fetch/i.test(msg)) {
-    return 'Wallet RPC for Arbitrum Sepolia is unavailable. In MetaMask, re-add Arbitrum Sepolia with https://sepolia-rollup.arbitrum.io/rpc, then retry.'
+    return `Wallet RPC unavailable. In MetaMask → Networks → Arbitrum Sepolia → Edit, paste RPC: ${PRIMARY_RPC}`
   }
   if (/user rejected|rejected the request|denied/i.test(msg)) {
     return 'Request rejected in wallet.'
@@ -174,22 +152,37 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
     try {
       await ensureArbitrumSepolia(eth)
-      await assertWalletRpcReady(eth)
       setTxHash(undefined)
 
-      // Step 1: Run iExec TEE computation — encrypts tokenAmount inside Intel TDX enclave.
+      // Step 1: Submit iExec task — returns taskid immediately
       setBuyStep('encrypting')
-      showToast('iExec TEE', 'Running confidential computation (~2 min)…', 'info')
+      showToast('iExec TEE', 'Submitting task to iExec network (Intel TDX TEE)…', 'info')
 
-      const encRes = await fetch('/api/iexec-buy', {
+      const startRes = await fetch('/api/iexec-buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tokenAmount: tokenAmount.toString(), contractAddress: property.contractAddress, buyerAddress: address }),
       })
-      const encJson = await encRes.json() as { handle?: string; handleProof?: string; error?: string }
-      if (!encRes.ok || encJson.error) throw new Error(encJson.error ?? 'iExec TEE computation failed')
-      const handle = encJson.handle as `0x${string}`
-      const handleProof = encJson.handleProof as `0x${string}`
+      const startJson = await startRes.json() as { taskid?: string; dealid?: string; error?: string }
+      if (!startRes.ok || startJson.error) throw new Error(startJson.error ?? 'iExec task submission failed')
+      const { taskid, dealid } = startJson as { taskid: string; dealid: string }
+
+      // Poll until TEE computation completes (each call < 30s, Vercel-safe)
+      let handle: `0x${string}` | undefined
+      let handleProof: `0x${string}` | undefined
+      for (let i = 0; i < 72; i++) {
+        await new Promise(r => setTimeout(r, 5000))
+        const pollRes = await fetch(`/api/iexec-poll?taskid=${taskid}&dealid=${dealid}`)
+        if (!pollRes.ok) continue
+        const poll = await pollRes.json() as { status: string; handle?: string; handleProof?: string; error?: string }
+        if (poll.status === 'failed') throw new Error(poll.error ?? 'iExec task failed in TEE worker')
+        if (poll.status === 'completed' && poll.handle && poll.handleProof) {
+          handle = poll.handle as `0x${string}`
+          handleProof = poll.handleProof as `0x${string}`
+          break
+        }
+      }
+      if (!handle || !handleProof) throw new Error('iExec task timed out after 6 minutes.')
 
       // Step 2: Approve USDT (direct eth.request — no viem polling).
       setBuyStep('approving')
