@@ -150,11 +150,12 @@ export default function MarketPage() {
         setTradeStep('encrypting')
         showToast(
           'iExec TEE encrypting',
-          'Step 1/3 — iApp running inside Intel TDX TEE to seal token amount via Nox...',
+          'Step 1/3 — submitting task to iExec network (TEE via Intel TDX)...',
           'info',
         )
 
-        const iexecRes = await fetch('/api/iexec-buy', {
+        // Submit task — returns immediately with taskid
+        const startRes = await fetch('/api/iexec-buy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -163,11 +164,28 @@ export default function MarketPage() {
             buyerAddress: address,
           }),
         })
-        if (!iexecRes.ok) {
-          const errData = await iexecRes.json() as { error?: string }
-          throw new Error(errData.error ?? 'iExec iApp execution failed')
+        if (!startRes.ok) {
+          const errData = await startRes.json() as { error?: string }
+          throw new Error(errData.error ?? 'iExec task submission failed')
         }
-        const { handle, handleProof } = await iexecRes.json() as { handle: `0x${string}`; handleProof: `0x${string}` }
+        const { taskid, dealid } = await startRes.json() as { taskid: string; dealid: string }
+
+        // Poll until TEE computation completes (each request < 10s, Vercel-safe)
+        let handle: `0x${string}` | undefined
+        let handleProof: `0x${string}` | undefined
+        for (let i = 0; i < 72; i++) {
+          await new Promise(r => setTimeout(r, 5000))
+          const pollRes = await fetch(`/api/iexec-poll?taskid=${taskid}&dealid=${dealid}`)
+          if (!pollRes.ok) continue
+          const poll = await pollRes.json() as { status: string; handle?: string; handleProof?: string; error?: string }
+          if (poll.status === 'failed') throw new Error(poll.error ?? 'iExec task failed in TEE worker')
+          if (poll.status === 'completed' && poll.handle && poll.handleProof) {
+            handle = poll.handle as `0x${string}`
+            handleProof = poll.handleProof as `0x${string}`
+            break
+          }
+        }
+        if (!handle || !handleProof) throw new Error('iExec task timed out after 6 minutes.')
 
         // ── Step 3: Approve USDT ──────────────────────────────────────────
         setTradeStep('approving')
