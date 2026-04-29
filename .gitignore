@@ -31,6 +31,9 @@ yarn-error.log*
 .env*.local
 !.env.example
 
+# iExec iApp config (contains wallet private key)
+iexec/iapp.config.json
+
 # vercel
 .vercel
 

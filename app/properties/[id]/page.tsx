@@ -174,17 +174,17 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       await ensureArbitrumSepolia(eth)
       setTxHash(undefined)
 
-      // Step 1: Encrypt via Nox gateway (server-side — no viem transport, no MetaMask RPC calls).
+      // Step 1: Run iExec TEE computation — encrypts tokenAmount inside Intel TDX enclave.
       setBuyStep('encrypting')
-      showToast('Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
+      showToast('iExec TEE', 'Running confidential computation (~2 min)…', 'info')
 
-      const encRes = await fetch('/api/nox-encrypt', {
+      const encRes = await fetch('/api/iexec-buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: tokenAmount.toString(), contractAddress: property.contractAddress, owner: address }),
+        body: JSON.stringify({ tokenAmount: tokenAmount.toString(), contractAddress: property.contractAddress, buyerAddress: address }),
       })
       const encJson = await encRes.json() as { handle?: string; handleProof?: string; error?: string }
-      if (!encRes.ok || encJson.error) throw new Error(encJson.error ?? 'Nox encryption failed')
+      if (!encRes.ok || encJson.error) throw new Error(encJson.error ?? 'iExec TEE computation failed')
       const handle = encJson.handle as `0x${string}`
       const handleProof = encJson.handleProof as `0x${string}`
 
