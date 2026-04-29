@@ -2,10 +2,9 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { useReadContract } from 'wagmi'
 import { DASHBOARD_NAV_ITEMS, type DashboardTab } from './types'
-import { TOKEN_PRICES } from '@/app/lib/contracts'
-
-const CEST_BALANCE = 2_400
+import { TOKEN_PRICES, ADDRESSES, ERC20_ABI } from '@/app/lib/contracts'
 
 export function DashboardShell({
   tab,
@@ -18,6 +17,39 @@ export function DashboardShell({
   address?: string
   children: ReactNode
 }) {
+  const addr = address as `0x${string}` | undefined
+
+  const { data: cestRaw } = useReadContract({
+    address: ADDRESSES.cestToken,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: addr ? [addr] : undefined,
+    query: { enabled: !!addr },
+  })
+
+  const { data: usdtRaw } = useReadContract({
+    address: ADDRESSES.usdt,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: addr ? [addr] : undefined,
+    query: { enabled: !!addr },
+  })
+
+  // CEST has 18 decimals, USDT has 6
+  const cestBalance = cestRaw ? Number(cestRaw) / 1e18 : null
+  const usdtBalance = usdtRaw ? Number(usdtRaw) / 1e6 : null
+
+  const cestDisplay = cestBalance !== null ? cestBalance.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'
+  const usdtDisplay = usdtBalance !== null ? `$${usdtBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'
+
+  // CEST staking tier based on real balance
+  const cestTier = cestBalance === null ? null
+    : cestBalance >= 200_000 ? 'Platinum'
+    : cestBalance >= 50_000  ? 'Gold'
+    : cestBalance >= 10_000  ? 'Silver'
+    : cestBalance >= 1_000   ? 'Bronze'
+    : 'None'
+
   return (
     <div className="min-h-screen pb-24 pt-20 md:pb-10">
       <aside
@@ -79,24 +111,42 @@ export function DashboardShell({
             ))}
           </nav>
 
-          <div className="mt-6 rounded-2xl border p-3" style={{ borderColor: 'rgba(0,229,160,0.18)', background: 'rgba(0,229,160,0.04)' }}>
+          {/* USDT balance */}
+          <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.04)' }}>
+            <p className="hidden text-[10px] font-body uppercase tracking-[0.24em] xl:block" style={{ color: 'var(--text-ghost)' }}>
+              USDT Balance
+            </p>
+            <p className="mt-1 text-center font-data text-sm xl:text-left xl:text-base" style={{ color: 'var(--gold-primary)' }}>
+              {usdtDisplay}
+            </p>
+            <p className="mt-0.5 text-center text-[10px] font-data xl:text-left" style={{ color: 'var(--text-ghost)' }}>
+              on-chain · 6 dec
+            </p>
+          </div>
+
+          {/* CEST balance */}
+          <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(0,229,160,0.18)', background: 'rgba(0,229,160,0.04)' }}>
             <p className="hidden text-[10px] font-body uppercase tracking-[0.24em] xl:block" style={{ color: 'var(--text-ghost)' }}>
               CEST Balance
             </p>
             <p className="mt-1 text-center font-data text-sm xl:text-left xl:text-base" style={{ color: 'var(--gold-primary)' }}>
-              {CEST_BALANCE.toLocaleString()} CEST
+              {cestDisplay} CEST
             </p>
-            <p className="mt-0.5 text-center text-[10px] font-data xl:text-left" style={{ color: 'var(--text-secondary)' }}>
-              ≈ ${(CEST_BALANCE * TOKEN_PRICES.CEST).toFixed(2)}
-            </p>
-            <div className="mt-2 flex items-center justify-between">
-              <p className="text-center text-[10px] font-body uppercase tracking-[0.24em] xl:text-left" style={{ color: 'var(--nox-green)' }}>
-                🥈 Silver Tier
+            {cestBalance !== null && (
+              <p className="mt-0.5 text-center text-[10px] font-data xl:text-left" style={{ color: 'var(--text-secondary)' }}>
+                ≈ ${(cestBalance * TOKEN_PRICES.CEST).toFixed(2)}
               </p>
-              <span className="text-[9px] font-data hidden xl:block" style={{ color: 'var(--text-ghost)' }}>
-                ${TOKEN_PRICES.CEST.toFixed(2)}/CEST
-              </span>
-            </div>
+            )}
+            {cestTier && (
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-center text-[10px] font-body uppercase tracking-[0.24em] xl:text-left" style={{ color: 'var(--nox-green)' }}>
+                  {cestTier === 'None' ? '— No Tier' : `${cestTier === 'Platinum' ? '💎' : cestTier === 'Gold' ? '🥇' : cestTier === 'Silver' ? '🥈' : '🥉'} ${cestTier}`}
+                </p>
+                <span className="text-[9px] font-data hidden xl:block" style={{ color: 'var(--text-ghost)' }}>
+                  ${TOKEN_PRICES.CEST.toFixed(2)}/CEST
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </aside>

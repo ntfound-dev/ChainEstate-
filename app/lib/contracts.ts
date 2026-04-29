@@ -81,6 +81,23 @@ export const PROPERTY_TOKEN_ABI = [
   },
 ] as const
 
+export const REGISTRY_ABI = [
+  {
+    name: 'getPropertyHolders',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs:  [{ name: 'propertyId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'address[]' }],
+  },
+  {
+    name: 'propertyCount',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs:  [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const
+
 export const SECONDARY_MARKET_ABI = [
   {
     name: 'createListing',

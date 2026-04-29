@@ -12,6 +12,7 @@ import type { DashboardTab, PortfolioHolding, ToastType } from '../components/da
 import { ConfidentialBadge } from '../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../components/ui/TransactionModal'
 import { useToast } from '../components/ui/Toast'
+import { useReadContracts } from 'wagmi'
 import {
   DASHBOARD_ACTIVITY,
   DASHBOARD_HOLDINGS,
@@ -21,6 +22,7 @@ import {
   DASHBOARD_WATCHLIST,
 } from '../lib/dashboardData'
 import { PROPERTIES } from '../lib/propertiesData'
+import { ADDRESSES, REGISTRY_ABI } from '../lib/contracts'
 
 const ACTIVITY_STYLES: Record<(typeof DASHBOARD_ACTIVITY)[number]['status'], { color: string; glow: string; label: string }> = {
   success: { color: 'var(--nox-green)', glow: 'rgba(0,229,160,0.18)', label: 'Settled' },
@@ -525,14 +527,53 @@ function ActivityPanel() {
   )
 }
 
+function OnChainHoldingsPanel({ onChainHoldings }: { onChainHoldings: typeof PROPERTIES }) {
+  return (
+    <div className="rounded-2xl border p-5" style={{ borderColor: 'rgba(0,229,160,0.25)', background: 'rgba(0,229,160,0.04)' }}>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="h-2 w-2 rounded-full" style={{ background: 'var(--nox-green)', animation: 'activePulse 2s ease-in-out infinite' }} />
+        <p className="text-[10px] font-body uppercase tracking-[0.28em]" style={{ color: 'var(--nox-green)' }}>
+          On-Chain Holdings — PropertyRegistry
+        </p>
+      </div>
+      {onChainHoldings.length === 0 ? (
+        <p className="text-sm font-body" style={{ color: 'var(--text-ghost)' }}>
+          No properties held yet.{' '}
+          <a href="/properties" className="underline" style={{ color: 'var(--gold-primary)' }}>Buy property tokens →</a>
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {onChainHoldings.map((prop) => prop && (
+            <div key={prop.id} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)' }}>
+              <div>
+                <p className="text-sm font-data" style={{ color: 'var(--text-primary)' }}>{prop.ticker}</p>
+                <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>{prop.location}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-data" style={{ color: 'var(--nox-green)' }}>✓ Holder</p>
+                <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>balance: encrypted</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>
+        Token amounts are euint256 (ERC-7984 encrypted). Holder status verified via PropertyRegistry.getPropertyHolders().
+      </p>
+    </div>
+  )
+}
+
 function OverviewTab({
   holdings,
   onSecureAction,
   onRefresh,
+  onChainHoldings,
 }: {
   holdings: PortfolioHolding[]
   onSecureAction: (message: string, sub: string, type?: ToastType) => void
   onRefresh: () => void
+  onChainHoldings: typeof PROPERTIES
 }) {
   const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0)
   const totalTokens = holdings.reduce((sum, holding) => sum + holding.tokens, 0)
@@ -566,6 +607,8 @@ function OverviewTab({
         <KpiCard title="Income This Month" value={formatCurrency(monthlyIncome)} meta="Confidential distributions routed through the TEE lane." accent="green" progress={88} />
         <KpiCard title="Est. Annual Yield" value={`${annualYield.toFixed(1)}%`} meta="Weighted against live positions and funded occupancy." encrypted={false} accent="gold" progress={64} />
       </div>
+
+      <OnChainHoldingsPanel onChainHoldings={onChainHoldings} />
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.45fr)_380px]">
         <div className="space-y-6">
@@ -1006,6 +1049,26 @@ export default function DashboardPage() {
   const [txOpen, setTxOpen] = useState(false)
   const timersRef = useRef<number[]>([])
 
+  // Real on-chain holder status — check registry for all 5 properties
+  const { data: holderData } = useReadContracts({
+    contracts: [1, 2, 3, 4, 5].map((id) => ({
+      address: ADDRESSES.registry,
+      abi: REGISTRY_ABI,
+      functionName: 'getPropertyHolders' as const,
+      args: [BigInt(id)] as const,
+    })),
+    query: { enabled: !!address, refetchInterval: 15_000 },
+  })
+
+  const onChainHoldings = useMemo(() => {
+    if (!address || !holderData) return []
+    return PROPERTIES.map((prop, i) => {
+      const holders = (holderData[i]?.result as `0x${string}`[] | undefined) ?? []
+      const isHolder = holders.some((h) => h.toLowerCase() === address.toLowerCase())
+      return isHolder ? prop : null
+    }).filter(Boolean)
+  }, [address, holderData])
+
   const holdings = useMemo<PortfolioHolding[]>(
     () =>
       DASHBOARD_HOLDINGS.map((holding) => ({
@@ -1049,7 +1112,7 @@ export default function DashboardPage() {
             transition={{ duration: 0.22 }}
           >
             {tab === 'overview' && (
-              <OverviewTab holdings={holdings} onSecureAction={queueSecureAction} onRefresh={handleRefresh} />
+              <OverviewTab holdings={holdings} onSecureAction={queueSecureAction} onRefresh={handleRefresh} onChainHoldings={onChainHoldings as typeof PROPERTIES} />
             )}
             {tab === 'properties' && <PropertiesTab holdings={holdings} />}
             {tab === 'income' && <IncomeTab holdings={holdings} />}
