@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,7 +10,6 @@ import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
 import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
-import { useNoxHandleClient } from '../../components/web3/useNoxHandleClient'
 import { PROPERTIES } from '../../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '../../lib/contracts'
 
@@ -24,9 +23,8 @@ type BuyStep = 'idle' | 'encrypting' | 'approving' | 'purchasing' | 'done' | 'er
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
-  const { isConnected } = useAccount()
+  const { isConnected, address } = useAccount()
   const { showToast } = useToast()
-  const { handleClient, status: handleStatus, error: handleError } = useNoxHandleClient()
   const { writeContractAsync } = useWriteContract()
   const publicClient = usePublicClient()
   const mapQuery = encodeURIComponent(property.location)
@@ -37,45 +35,37 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [txOpen, setTxOpen] = useState(false)
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [buyStep, setBuyStep] = useState<BuyStep>('idle')
-  const noxToastShown = useRef(false)
 
   const totalCost = amount ? (parseFloat(amount) * property.pricePerToken).toFixed(2) : '0.00'
-
-  const noxBusy = handleStatus === 'initializing'
   const buying   = buyStep !== 'idle' && buyStep !== 'done' && buyStep !== 'error'
 
   const handleBuy = async () => {
     if (!amount || parseFloat(amount) <= 0) return
 
-    if (!handleClient) {
-      if (!noxToastShown.current) {
-        noxToastShown.current = true
-        showToast(
-          'Nox SDK initializing',
-          noxBusy
-            ? 'iExec Nox is connecting to Arbitrum Sepolia — try again in a moment.'
-            : handleError ?? 'Reconnect your wallet on Arbitrum Sepolia.',
-          'warning'
-        )
-        setTimeout(() => { noxToastShown.current = false }, 4000)
-      }
-      return
-    }
-
     const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
-    // USDT has 6 decimals; 1 token = 1 USDT = 1_000_000
     const totalCostUsdt = tokenAmount * 1_000_000n
 
     try {
-      // ── Step 1: Encrypt via iExec Nox TEE ──────────────────────────────
+      // ── Step 1: Encrypt via server-side Nox proxy (bypasses domain auth) ─
       setBuyStep('encrypting')
       showToast('🔒 Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
 
-      const { handle, handleProof } = await handleClient.encryptInput(
-        tokenAmount,
-        'uint256',
-        property.contractAddress as `0x${string}`
-      )
+      const encRes = await fetch('/api/nox-encrypt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          value: tokenAmount.toString(),
+          contractAddress: property.contractAddress,
+          owner: address,
+        }),
+      })
+
+      if (!encRes.ok) {
+        const errData = await encRes.json().catch(() => ({})) as { error?: string }
+        throw new Error(errData.error ?? `Nox encryption failed (${encRes.status})`)
+      }
+
+      const { handle, handleProof } = await encRes.json() as { handle: string; handleProof: string }
 
       // ── Step 2: Approve USDT spend ─────────────────────────────────────
       setBuyStep('approving')
@@ -521,7 +511,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                       !amount ||
                       parseFloat(amount) <= 0 ||
                       property.status === 'sold_out' ||
-                      noxBusy ||
                       buying
                     }
                     className="w-full py-3 px-4 rounded text-sm btn-gold disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
@@ -534,9 +523,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                           ? '⏳ Approving USDT...'
                           : buyStep === 'purchasing'
                             ? '⏳ Purchasing...'
-                            : noxBusy
-                              ? '⏳ Connecting to Nox...'
-                              : '🔒 Encrypt & Buy'}
+                            : '🔒 Encrypt & Buy'}
                   </button>
                   <button className="w-full py-2.5 px-4 rounded text-sm font-body btn-ghost">
                     Buy with Fiat →
@@ -552,18 +539,16 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                     <span
                       className="rounded-full px-2 py-1 text-[9px] font-body uppercase tracking-[0.24em]"
                       style={{
-                        background: handleStatus === 'ready' ? 'rgba(0,229,160,0.08)' : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${handleStatus === 'ready' ? 'rgba(0,229,160,0.2)' : 'var(--border-subtle)'}`,
-                        color: handleStatus === 'ready' ? 'var(--nox-green)' : 'var(--text-secondary)',
+                        background: 'rgba(0,229,160,0.08)',
+                        border: '1px solid rgba(0,229,160,0.2)',
+                        color: 'var(--nox-green)',
                       }}
                     >
-                      {handleStatus === 'ready' ? 'SDK ready' : handleStatus === 'initializing' ? 'SDK loading' : 'SDK idle'}
+                      TEE ready
                     </span>
                   </div>
                   <p className="text-[10px] font-body mt-1" style={{ color: 'var(--text-ghost)' }}>
-                    {handleStatus === 'ready'
-                      ? 'Buy flow now prepares confidential inputs with @iexec-nox/handle before settlement.'
-                      : 'Connect on Arbitrum Sepolia to initialize the official iExec Nox handle client.'}
+                    Buy flow encrypts token amount via iExec Nox TEE before on-chain settlement.
                   </p>
                 </div>
               </div>
