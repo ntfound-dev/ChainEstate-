@@ -76,11 +76,16 @@ export async function POST(req: NextRequest) {
     }
     const workerpoolOrder = wpOrders[0].order
 
+    // Strip 0x prefix — iExec CLI parses 0x-prefixed hex as JS number literals,
+    // losing precision on 160-bit Ethereum addresses. iApp re-adds 0x internally.
+    const contractHex = contractAddress.replace(/^0x/i, '')
+    const buyerHex = buyerAddress.replace(/^0x/i, '')
+
     // Create and sign requester order with app args
     const requesterOrder = await iexec.order.createRequestorder({
       app: IAPP_ADDRESS,
       category: 0,
-      params: { iexec_args: `${tokenAmount} ${contractAddress} ${buyerAddress}` },
+      params: { iexec_args: `${tokenAmount} ${contractHex} ${buyerHex}` },
       workerpoolmaxprice: workerpoolOrder.workerpoolprice,
       appmaxprice: appOrder.appprice,
     })

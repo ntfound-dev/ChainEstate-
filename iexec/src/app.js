@@ -16,7 +16,10 @@ const main = async () => {
       throw new Error(`Expected 3 args: tokenAmount contractAddress buyerAddress, got ${args.length}`);
     }
 
-    const [tokenAmount, contractAddress, buyerAddress] = args;
+    const [tokenAmount, contractRaw, buyerRaw] = args;
+    // iExec CLI interprets 0x-prefixed hex as JS numbers — receive without 0x and re-add here
+    const contractAddress = contractRaw.startsWith('0x') ? contractRaw : '0x' + contractRaw;
+    const buyerAddress    = buyerRaw.startsWith('0x')    ? buyerRaw    : '0x' + buyerRaw;
     console.log(`Encrypting tokenAmount=${tokenAmount} for contract=${contractAddress} owner=${buyerAddress}`);
 
     const res = await fetch(`${NOX_GATEWAY}/v0/secrets`, {
