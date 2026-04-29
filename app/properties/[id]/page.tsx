@@ -44,7 +44,7 @@ async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0
   }
   throw new Error('Transaction not confirmed after 2 minutes. Check Arbiscan.')
 }
-const PRIMARY_RPC = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://sepolia-rollup.arbitrum.io/rpc'
+const PRIMARY_RPC = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'
 
 const ARBITRUM_SEPOLIA_PARAMS = {
   chainId: '0x66eee',
