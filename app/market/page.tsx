@@ -86,8 +86,9 @@ export default function MarketPage() {
       throw new Error('Switch MetaMask to Arbitrum Sepolia (chain ID 421614).')
     }
 
-    // Use a stable public RPC for reads — MetaMask RPC can be stale/misconfigured
-    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http('https://sepolia-rollup.arbitrum.io/rpc') })
+    // Use env-configured RPC for reads — MetaMask RPC can be stale/misconfigured
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? 'https://sepolia-rollup.arbitrum.io/rpc'
+    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) })
 
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
