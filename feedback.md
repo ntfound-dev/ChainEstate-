@@ -1,7 +1,7 @@
 # iExec Nox — Developer Feedback
 
 **Project:** ChainEstate — Fractional Real Estate Tokenization on Arbitrum Sepolia  
-**Team:** Frendi Cahyo  
+**Team:** ntfound-dev  
 **Hackathon:** iExec Nox / ChainGPT Hackathon, Q1 2026  
 **Date:** April 2026
 
