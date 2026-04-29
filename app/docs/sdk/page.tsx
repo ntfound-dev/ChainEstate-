@@ -16,9 +16,9 @@ const CODE_SECTIONS = [
     dim: 'rgba(212,175,55,0.06)',
     border: 'rgba(212,175,55,0.2)',
     lang: 'bash',
-    desc: 'Install Wagmi v2, Viem, and the iExec Nox handle SDK.',
+    desc: 'Install Viem and the iExec Nox handle SDK. Wagmi is optional — all transaction flows use window.ethereum directly to avoid MetaMask rate-limiting.',
     code: `# Core dependencies
-npm install wagmi viem @tanstack/react-query
+npm install viem @tanstack/react-query
 
 # iExec Nox handle client (ERC-7984 encryption)
 npm install @iexec-nox/handle`,
@@ -30,18 +30,20 @@ npm install @iexec-nox/handle`,
     dim: 'rgba(0,229,160,0.04)',
     border: 'rgba(0,229,160,0.2)',
     lang: 'typescript',
-    desc: 'Initialise the iExec Nox handle client using the connected wallet\'s viem WalletClient. This client communicates with the Intel TDX TEE gateway to encrypt inputs.',
-    code: `import { createViemHandleClient } from '@iexec-nox/handle'
-import { useWalletClient } from 'wagmi'
+    desc: 'Create a viem WalletClient from window.ethereum, then pass it to createViemHandleClient. This client signs EIP-712 messages for the Intel TDX TEE gateway — no gas, no transactions.',
+    code: `import { createWalletClient, custom } from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
+import { createViemHandleClient } from '@iexec-nox/handle'
 
-function useNoxHandleClient() {
-  const { data: walletClient } = useWalletClient()
+// Build inside an async function (after wallet is connected)
+const eth = window.ethereum  // MetaMask EIP-1193 provider
+const viemWallet = createWalletClient({
+  chain: arbitrumSepolia,
+  transport: custom(eth),
+})
 
-  if (!walletClient) return null
-
-  // createViemHandleClient wraps the wallet for TEE communication
-  return createViemHandleClient(walletClient)
-}`,
+// createViemHandleClient is async — must await
+const handleClient = await createViemHandleClient(viemWallet)`,
   },
   {
     id: 'encrypt',
@@ -50,21 +52,17 @@ function useNoxHandleClient() {
     dim: 'rgba(0,229,160,0.04)',
     border: 'rgba(0,229,160,0.2)',
     lang: 'typescript',
-    desc: 'Call encryptInput with the token amount, type, and the contract address that will receive the encrypted handle. Returns { handle, handleProof } — both needed for on-chain calls.',
-    code: `import { createViemHandleClient } from '@iexec-nox/handle'
-
-const handleClient = createViemHandleClient(walletClient)
-
-// Encrypt 100 tokens for PEARL-DXB-001
+    desc: 'Call encryptInput with 3 positional args: value, Solidity type, and the contract address that will consume the handle. Gasless — signs an EIP-712 message. Returns { handle, handleProof }.',
+    code: `// encryptInput takes 3 positional args — NOT an object
 const { handle, handleProof } = await handleClient.encryptInput(
-  100,                         // tokenAmount (number or bigint)
-  'uint256',                   // Solidity type
-  '0x853D51fB...'              // PropertyToken contract address (the consumer)
+  100n,                              // value: number | bigint
+  'uint256',                         // Solidity type string
+  '0x853D51fB...' as \`0x\${string}\`  // PropertyToken contract address
 )
 
-// handle      → bytes32  (encrypted representation of "100")
-// handleProof → bytes    (TEE attestation proof)
-// Both are required as args to purchaseTokens()`,
+// handle      → bytes32  (opaque encrypted pointer to "100")
+// handleProof → bytes    (Intel TDX TEE attestation)
+// Both are single-use — re-encrypt before each purchaseTokens call`,
   },
   {
     id: 'buy',
@@ -73,36 +71,50 @@ const { handle, handleProof } = await handleClient.encryptInput(
     dim: 'rgba(0,229,160,0.04)',
     border: 'rgba(0,229,160,0.2)',
     lang: 'typescript',
-    desc: 'Full 3-step buy flow: encrypt token amount with Nox TEE, approve USDT spending, then call purchaseTokens. The contract stores the balance as encrypted euint256.',
-    code: `import { createViemHandleClient }  from '@iexec-nox/handle'
-import { useWriteContract, usePublicClient } from 'wagmi'
+    desc: 'Full 3-step buy flow using window.ethereum directly. Manual receipt polling (every 3 s) avoids MetaMask\'s rate-limit triggered by viem\'s waitForTransactionReceipt.',
+    code: `import { createWalletClient, custom, encodeFunctionData } from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
+import { createViemHandleClient } from '@iexec-nox/handle'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '@/app/lib/contracts'
 
-// Step 1 — Encrypt amount via Intel TDX TEE
-const handleClient = createViemHandleClient(walletClient)
+const eth = window.ethereum
+
+// Manual receipt polling — avoids MetaMask RPC rate-limits
+async function waitForReceipt(hash: string) {
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 3000))
+    const r = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] })
+    if (r) return r  // r.status === '0x1' success, '0x0' reverted
+  }
+  throw new Error('Not confirmed after 2 min')
+}
+
+// Step 1 — Encrypt via Nox TEE (gasless EIP-712 sign)
+const viemWallet = createWalletClient({ chain: arbitrumSepolia, transport: custom(eth) })
+const handleClient = await createViemHandleClient(viemWallet)
 const { handle, handleProof } = await handleClient.encryptInput(
-  tokenAmount,        // e.g. 100 (integer token count)
-  'uint256',
-  propertyTokenAddress
+  tokenAmount, 'uint256', propertyTokenAddress as \`0x\${string}\`
 )
 
 // Step 2 — Approve USDT (6 decimals)
-const approveTx = await writeContractAsync({
-  address: ADDRESSES.usdt,
-  abi: ERC20_ABI,
-  functionName: 'approve',
+const approveData = encodeFunctionData({
+  abi: ERC20_ABI, functionName: 'approve',
   args: [propertyTokenAddress, BigInt(tokenAmount) * 1_000_000n],
 })
-await publicClient.waitForTransactionReceipt({ hash: approveTx })
+const approveTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] })
+const approveRx = await waitForReceipt(approveTx as string)
+if (approveRx.status === '0x0') throw new Error('Approval reverted')
 
-// Step 3 — Purchase (encrypted balance stored on-chain)
-const purchaseTx = await writeContractAsync({
-  address: propertyTokenAddress,
-  abi: PROPERTY_TOKEN_ABI,
-  functionName: 'purchaseTokens',
-  args: [handle, handleProof, BigInt(tokenAmount)],
+// Step 3 — purchaseTokens (encrypted balance stored on-chain)
+const buyData = encodeFunctionData({
+  abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens',
+  args: [handle as \`0x\${string}\`, handleProof as \`0x\${string}\`, BigInt(tokenAmount)],
 })
-await publicClient.waitForTransactionReceipt({ hash: purchaseTx })`,
+const purchaseTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: propertyTokenAddress, data: buyData, gas: '0x493E0' }] })
+const purchaseRx = await waitForReceipt(purchaseTx as string)
+if (purchaseRx.status === '0x0') throw new Error('Purchase reverted')`,
   },
   {
     id: 'sell-list',
@@ -111,35 +123,37 @@ await publicClient.waitForTransactionReceipt({ hash: purchaseTx })`,
     dim: 'rgba(212,175,55,0.06)',
     border: 'rgba(212,175,55,0.2)',
     lang: 'typescript',
-    desc: 'Sellers first grant SecondaryMarket as an operator (with an expiry), then create a public listing. Token amounts are public in the listing but balances remain encrypted.',
-    code: `import { ADDRESSES, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '@/app/lib/contracts'
+    desc: 'Sellers first grant SecondaryMarket as an operator (with expiry), then create a public listing. Token amounts in the listing are public; on-chain balances remain encrypted.',
+    code: `import { encodeFunctionData } from 'viem'
+import { ADDRESSES, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '@/app/lib/contracts'
 
 // Step 1 — Grant SecondaryMarket as operator (7-day expiry)
 const expiry = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
-const grantTx = await writeContractAsync({
-  address: propertyTokenAddress,
-  abi: PROPERTY_TOKEN_ABI,
-  functionName: 'grantOperator',
+const grantData = encodeFunctionData({
+  abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator',
   args: [ADDRESSES.secondaryMarket, expiry],
 })
-await publicClient.waitForTransactionReceipt({ hash: grantTx })
+const grantTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: propertyTokenAddress, data: grantData, gas: '0x30D40' }] })
+const grantRx = await waitForReceipt(grantTx as string)
+if (grantRx.status === '0x0') throw new Error('grantOperator reverted')
 
-// Step 2 — Create listing
-// pricePerToken in USDT 6 decimals: $1.025 = 1_025_000
+// Step 2 — Create listing (pricePerToken in USDT 6 decimals: $1.025 = 1_025_000)
 const pricePerTokenUsdt = BigInt(Math.round(parseFloat(sellPrice) * 1_000_000))
-const listTx = await writeContractAsync({
-  address: ADDRESSES.secondaryMarket,
-  abi: SECONDARY_MARKET_ABI,
-  functionName: 'createListing',
+const listData = encodeFunctionData({
+  abi: SECONDARY_MARKET_ABI, functionName: 'createListing',
   args: [
-    propertyTokenAddress,    // address tokenContract
-    BigInt(propertyId),      // uint256 propertyId
-    BigInt(tokenAmount),     // uint256 tokenAmount
-    pricePerTokenUsdt,       // uint256 pricePerToken (USDT 6 dec)
+    propertyTokenAddress as \`0x\${string}\`,  // address tokenContract
+    BigInt(propertyId),                        // uint256 propertyId
+    BigInt(tokenAmount),                       // uint256 tokenAmount
+    pricePerTokenUsdt,                         // uint256 pricePerToken
   ],
 })
-await publicClient.waitForTransactionReceipt({ hash: listTx })
-// Returns listingId (uint256) — store it to cancel or reference`,
+const listTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gas: '0x493E0' }] })
+const listRx = await waitForReceipt(listTx as string)
+if (listRx.status === '0x0') throw new Error('createListing reverted')
+// listingId is emitted in the tx logs — query via getLogs or Arbiscan`,
   },
   {
     id: 'buy-secondary',
@@ -148,29 +162,32 @@ await publicClient.waitForTransactionReceipt({ hash: listTx })
     dim: 'rgba(212,175,55,0.06)',
     border: 'rgba(212,175,55,0.2)',
     lang: 'typescript',
-    desc: 'To buy an existing listing: approve USDT for the total cost, then call executeBuy. The SecondaryMarket calls confidentialTransferFrom internally — amounts move encrypted.',
-    code: `import { ADDRESSES, ERC20_ABI, SECONDARY_MARKET_ABI } from '@/app/lib/contracts'
+    desc: 'To buy an existing listing: approve USDT for the total cost, then call executeBuy. SecondaryMarket calls confidentialTransferFrom internally — token amounts move encrypted.',
+    code: `import { encodeFunctionData } from 'viem'
+import { ADDRESSES, ERC20_ABI, SECONDARY_MARKET_ABI } from '@/app/lib/contracts'
 
-// totalCost = tokenAmount × pricePerToken (both already uint256)
-const totalUsdt = listing.tokenAmount * listing.pricePerToken  // BigInt math
+// totalCost = tokenAmount × pricePerToken (USDT 6 dec, BigInt)
+const totalUsdt = listing.tokenAmount * listing.pricePerToken
 
 // Step 1 — Approve USDT to SecondaryMarket
-const approveTx = await writeContractAsync({
-  address: ADDRESSES.usdt,
-  abi: ERC20_ABI,
-  functionName: 'approve',
+const approveData = encodeFunctionData({
+  abi: ERC20_ABI, functionName: 'approve',
   args: [ADDRESSES.secondaryMarket, totalUsdt],
 })
-await publicClient.waitForTransactionReceipt({ hash: approveTx })
+const approveTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] })
+const approveRx = await waitForReceipt(approveTx as string)
+if (approveRx.status === '0x0') throw new Error('USDT approval reverted')
 
 // Step 2 — Execute buy (0.5% fee deducted)
-const buyTx = await writeContractAsync({
-  address: ADDRESSES.secondaryMarket,
-  abi: SECONDARY_MARKET_ABI,
-  functionName: 'executeBuy',
+const buyData = encodeFunctionData({
+  abi: SECONDARY_MARKET_ABI, functionName: 'executeBuy',
   args: [BigInt(listingId)],
 })
-await publicClient.waitForTransactionReceipt({ hash: buyTx })`,
+const buyTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] })
+const buyRx = await waitForReceipt(buyTx as string)
+if (buyRx.status === '0x0') throw new Error('executeBuy reverted')`,
   },
   {
     id: 'read-listing',
@@ -179,11 +196,17 @@ await publicClient.waitForTransactionReceipt({ hash: buyTx })`,
     dim: 'rgba(255,255,255,0.02)',
     border: 'var(--border-visible)',
     lang: 'typescript',
-    desc: 'Use useReadContract or publicClient.readContract to read a listing struct. All fields are public — only encrypted token amounts in PropertyToken are hidden.',
-    code: `import { useReadContract } from 'wagmi'
+    desc: 'Use createPublicClient with custom(window.ethereum) to read contract state — no external RPC needed. All listing fields are public; only PropertyToken balances are encrypted.',
+    code: `import { createPublicClient, custom } from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
 import { ADDRESSES, SECONDARY_MARKET_ABI } from '@/app/lib/contracts'
 
-const { data: listing } = useReadContract({
+const publicClient = createPublicClient({
+  chain: arbitrumSepolia,
+  transport: custom(window.ethereum),
+})
+
+const listing = await publicClient.readContract({
   address: ADDRESSES.secondaryMarket,
   abi: SECONDARY_MARKET_ABI,
   functionName: 'listings',
@@ -192,16 +215,14 @@ const { data: listing } = useReadContract({
 
 // listing → {
 //   listingId:    bigint,
-//   seller:       address,
-//   tokenContract:address,
+//   seller:       \`0x\${string}\`,
+//   tokenContract:\`0x\${string}\`,
 //   propertyId:   bigint,
 //   tokenAmount:  bigint,
 //   pricePerToken:bigint,   // USDT 6 decimals
 //   listedAt:     bigint,   // unix timestamp
 //   active:       boolean,
-// }
-
-// Display price: Number(listing.pricePerToken) / 1_000_000`,
+// }`,
   },
 ]
 
@@ -248,8 +269,9 @@ export default function SDKPage() {
         SDK & Integration
       </h1>
       <p className="text-base font-body leading-relaxed mb-12 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
-        Step-by-step code for integrating with ChainEstate contracts using Wagmi v2, Viem, and the iExec Nox
-        handle SDK. All flows are implemented in the frontend — see{' '}
+        Step-by-step code for integrating with ChainEstate contracts using Viem and the iExec Nox handle SDK.
+        Transactions go through <code className="font-data text-sm" style={{ color: 'var(--nox-green)' }}>window.ethereum</code> directly
+        (no wagmi write hooks) to avoid MetaMask RPC rate-limits. See{' '}
         <code className="font-data text-sm" style={{ color: 'var(--gold-primary)' }}>app/properties/[id]/page.tsx</code>{' '}
         and{' '}
         <code className="font-data text-sm" style={{ color: 'var(--gold-primary)' }}>app/market/page.tsx</code>{' '}
@@ -399,13 +421,13 @@ export default function SDKPage() {
               ],
             },
             {
-              title: 'SSR / Hydration',
+              title: 'MetaMask RPC rate-limits',
               color: 'var(--nox-green)',
               points: [
-                'useAccount() returns undefined on server',
-                'Use useClientAccount() hook for safe client-only reads',
-                'All Web3 components must be "use client"',
-                'Wrap in <WagmiProvider> + <QueryClientProvider>',
+                "viem's waitForTransactionReceipt polls every ~4 s — triggers MetaMask rate-limit",
+                'Fix: poll eth_getTransactionReceipt manually every 3 s via window.ethereum',
+                "MetaMask also blocks eth_call via custom() transport — wrap reads in try/catch",
+                'receipt.status is raw hex: "0x1" success, "0x0" reverted (not "success"/"reverted")',
               ],
             },
             {

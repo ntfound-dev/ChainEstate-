@@ -69,8 +69,10 @@ const CONTRACTS = [
     desc: 'Receives monthly USDT from the property operator and distributes 90% to all registered holders. Platform takes 5%, maintenance reserve 5%. Equal-share model (not pro-rata) because ERC-7984 balances cannot be read on-chain.',
     inherits: ['ReentrancyGuard', 'Pausable', 'Ownable'],
     functions: [
-      { sig: 'distributeRent(uint256 propertyId, uint256 amount)', access: 'onlyOwner', desc: 'Splits: 5% platform + 5% maintenance + 90% equally to all holders.' },
+      { sig: 'depositRent(uint256 propertyId, uint256 amount)', access: 'onlyOwner', desc: 'Deposit USDT rent for a property. Accumulates in pendingRent[propertyId].' },
+      { sig: 'distributeRent(uint256 propertyId)', access: 'onlyOwner', desc: 'Distribute accumulated pendingRent — splits: 5% platform + 5% maintenance + 90% equally to all holders.' },
       { sig: 'getDistributionHistory(uint256 propertyId) → RentDistribution[]', access: 'view', desc: 'Returns past distributions for a property.' },
+      { sig: 'getPendingRent(uint256 propertyId) → uint256', access: 'view', desc: 'Returns accumulated undistributed rent for a property.' },
     ],
     notes: [
       'Equal share per holder — not pro-rata by token balance',
@@ -107,9 +109,11 @@ const CONTRACTS = [
     desc: 'Token-gated proposal and voting system. Only verified PropertyToken holders can create proposals or vote. Holder status checked via registry.isHolder() — no balance amount is ever exposed.',
     inherits: ['Ownable'],
     functions: [
-      { sig: 'createProposal(uint256 propertyId, string description, uint256 duration)', access: 'onlyHolder', desc: 'Create a governance proposal for a property. Must hold that property\'s token.' },
-      { sig: 'vote(uint256 proposalId, bool support)', access: 'onlyHolder', desc: '1 address = 1 vote. Balance-blind — no whale advantage visible on-chain.' },
-      { sig: 'executeProposal(uint256 proposalId)', access: 'public', desc: 'Execute passed proposal after voting period ends.' },
+      { sig: 'createProposal(uint256 propertyId, ProposalType proposalType, string description) → uint256 proposalId', access: 'onlyHolder', desc: 'Create a governance proposal for a property. ProposalType: RentAdjustment | Maintenance | PropertyStatus | Other.' },
+      { sig: 'castVote(uint256 proposalId, VoteOption option)', access: 'holder', desc: '1 address = 1 vote. VoteOption: For | Against | Abstain. Balance-blind — no whale advantage visible on-chain.' },
+      { sig: 'finalizeProposal(uint256 proposalId)', access: 'public', desc: 'Finalize a proposal after voting deadline. Checks quorum and majority. Any address can call.' },
+      { sig: 'getProposal(uint256 proposalId) → Proposal', access: 'view', desc: 'Returns full proposal struct including vote counts and execution status.' },
+      { sig: 'getProposalsByProperty(uint256 propertyId) → Proposal[]', access: 'view', desc: 'Returns all proposals for a property.' },
     ],
     notes: [
       'Access control: registry.isHolder(propertyId, msg.sender) — no balance exposed',
