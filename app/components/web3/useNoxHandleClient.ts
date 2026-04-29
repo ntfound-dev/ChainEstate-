@@ -26,18 +26,19 @@ export function useNoxHandleClient() {
     setStatus('initializing')
     setError(null)
 
-    createViemHandleClient(walletClient as WalletClient)
-      .then((client) => {
+    void (async () => {
+      try {
+        const client = await createViemHandleClient(walletClient as WalletClient)
         if (cancelled) return
         setHandleClient(client)
         setStatus('ready')
-      })
-      .catch((clientError: unknown) => {
+      } catch (clientError: unknown) {
         if (cancelled) return
         setHandleClient(null)
         setStatus('error')
         setError(clientError instanceof Error ? clientError.message : 'Failed to initialize Nox handle client.')
-      })
+      }
+    })()
 
     return () => {
       cancelled = true

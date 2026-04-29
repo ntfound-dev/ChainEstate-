@@ -6,6 +6,7 @@ import { ToastProvider } from './components/ui/Toast'
 import { AIChatbot } from './components/ui/AIChatbot'
 import { EncryptedRain } from './components/effects/EncryptedRain'
 import { AmbientOrbs } from './components/effects/AmbientOrbs'
+import { NoxErrorSuppressor } from './components/web3/NoxErrorSuppressor'
 
 export const metadata: Metadata = {
   title: 'ChainEstate — Private Real Estate on Chain',
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="antialiased min-h-screen relative" style={{ background: 'var(--bg-void)' }}>
         <Web3Provider>
+          <NoxErrorSuppressor />
           <ToastProvider>
             {/* Background layers */}
             <EncryptedRain />
