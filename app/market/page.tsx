@@ -9,7 +9,6 @@ import { MarketTradePanel } from '../components/market/MarketTradePanel'
 import type { MarketListingView, TradeStep, TradeType } from '../components/market/types'
 import { TransactionModal } from '../components/ui/TransactionModal'
 import { useToast } from '../components/ui/Toast'
-import { useNoxHandleClient } from '../components/web3/useNoxHandleClient'
 import { MARKET_LISTINGS, CEST_LISTING } from '../lib/marketData'
 import { PROPERTIES } from '../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '../lib/contracts'
@@ -17,7 +16,6 @@ import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '
 export default function MarketPage() {
   const { isConnected } = useAccount()
   const { showToast } = useToast()
-  const { handleClient, status: handleStatus } = useNoxHandleClient()
   const { writeContractAsync } = useWriteContract()
   const publicClient = usePublicClient()
 
@@ -186,7 +184,7 @@ export default function MarketPage() {
             sellPrice={sellPrice}
             total={total}
             isConnected={isConnected}
-            handleStatus={handleStatus}
+            handleStatus="ready"
             tradeStep={tradeStep}
             onTradeTypeChange={(t) => { setTradeType(t); setAmount(''); setSellPrice('') }}
             onAmountChange={setAmount}
