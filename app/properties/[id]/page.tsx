@@ -27,6 +27,12 @@ function extractMsg(err: unknown): string {
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
 
+async function getChainId(eth: Ethereum): Promise<number> {
+  const chainId = await eth.request({ method: 'eth_chainId' })
+  if (typeof chainId !== 'string') throw new Error('Unable to read chain ID from wallet.')
+  return Number(chainId)
+}
+
 async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 3000))
@@ -68,6 +74,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
+    if (!address) { showToast('Wallet not connected', 'Connect your wallet before buying.', 'error'); return }
+
+    const chainId = await getChainId(eth)
+    if (chainId !== 421614) {
+      throw new Error('Switch MetaMask to Arbitrum Sepolia (chain ID 421614).')
+    }
 
     const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
     const totalCostUsdt = tokenAmount * 1_000_000n

@@ -268,7 +268,7 @@ export default function SDKPage() {
       <h1 className="font-display text-4xl mb-4" style={{ color: 'var(--text-primary)' }}>
         SDK & Integration
       </h1>
-      <p className="text-base font-body leading-relaxed mb-12 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-base font-body leading-relaxed mb-6 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
         Step-by-step code for integrating with ChainEstate contracts using Viem and the iExec Nox handle SDK.
         Transactions go through <code className="font-data text-sm" style={{ color: 'var(--nox-green)' }}>window.ethereum</code> directly
         (no wagmi write hooks) to avoid MetaMask RPC rate-limits. See{' '}
@@ -277,6 +277,50 @@ export default function SDKPage() {
         <code className="font-data text-sm" style={{ color: 'var(--gold-primary)' }}>app/market/page.tsx</code>{' '}
         for production usage.
       </p>
+      <div className="rounded-xl border border-var(--border-visible) bg-[rgba(255,255,255,0.02)] p-5 mb-12">
+        <p className="text-sm font-body leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          Important: MetaMask must be connected to <strong>Arbitrum Sepolia</strong> (chain ID 421614). If you see
+          RPC endpoint errors, switch to a healthy Sepolia RPC provider or set <code className="font-data">NEXT_PUBLIC_RPC_URL</code>
+          to a reliable Arbitrum Sepolia RPC endpoint.
+        </p>
+      </div>
+
+      <section className="mb-12 rounded-xl p-6" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-visible)' }}>
+        <div className="mb-4">
+          <p className="text-xs font-body uppercase tracking-[0.28em] mb-3" style={{ color: 'var(--nox-green)' }}>
+            Nox JavaScript SDK
+          </p>
+          <h2 className="font-display text-2xl" style={{ color: 'var(--text-primary)' }}>
+            @iexec-nox/handle Overview
+          </h2>
+        </div>
+        <p className="text-sm font-body leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
+          The Nox JavaScript SDK provides a simple, secure interface for encrypting data and managing handles with the iExec
+          Nox protocol. It works with both Ethers.js and Viem, supports account abstraction via ERC-4337 smart accounts,
+          and keeps sensitive data encrypted without requiring direct cryptographic handling in your app.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl p-4" style={{ background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.12)' }}>
+            <p className="font-display text-xs uppercase tracking-[0.22em] mb-3" style={{ color: 'var(--nox-green)' }}>Key Features</p>
+            <ul className="space-y-2 text-xs font-body" style={{ color: 'var(--text-ghost)' }}>
+              <li>Easy integration with Viem and Ethers.js</li>
+              <li>Type-safe TypeScript support</li>
+              <li>Gasless encryption via EIP-712 signatures</li>
+              <li>Automatic handle and proof management</li>
+              <li>Secure off-chain data protection using Intel TDX</li>
+            </ul>
+          </div>
+          <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-visible)' }}>
+            <p className="font-display text-xs uppercase tracking-[0.22em] mb-3" style={{ color: 'var(--gold-primary)' }}>Core Concepts</p>
+            <ul className="space-y-2 text-xs font-body" style={{ color: 'var(--text-ghost)' }}>
+              <li><strong>Handles</strong> are 32-byte opaque references to encrypted off-chain data.</li>
+              <li><strong>Handle proofs</strong> authenticate the handle using TEE-signed EIP-712 payloads.</li>
+              <li><strong>Access control</strong> is enforced on-chain so only authorized wallets can decrypt handles.</li>
+              <li><strong>Single-use</strong> handles and proofs must be re-generated for each confidential transaction.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
       {/* Environment Variables */}
       <section className="mb-12">

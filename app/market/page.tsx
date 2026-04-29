@@ -29,11 +29,19 @@ function extractMsg(err: unknown): string {
   return 'Transaction failed.'
 }
 
+async function getChainId(eth: Ethereum): Promise<number> {
+  const chainId = await eth.request({ method: 'eth_chainId' })
+  if (typeof chainId !== 'string') throw new Error('Unable to read chain ID from wallet.')
+  return Number(chainId)
+}
+
 async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 3000))
-    const receipt = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] }) as { status: '0x1' | '0x0' } | null
-    if (receipt !== null) return receipt
+    try {
+      const receipt = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] }) as { status: '0x1' | '0x0' } | null
+      if (receipt !== null) return receipt
+    } catch { /* RPC hiccup — keep polling */ }
   }
   throw new Error('Transaction not confirmed after 2 minutes. Check Arbiscan.')
 }
@@ -71,6 +79,12 @@ export default function MarketPage() {
 
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
+    if (!address) { showToast('Wallet not connected', 'Connect your wallet before trading.', 'error'); return }
+
+    const chainId = await getChainId(eth)
+    if (chainId !== 421614) {
+      throw new Error('Switch MetaMask to Arbitrum Sepolia (chain ID 421614).')
+    }
 
     // Use wallet's own RPC — no external endpoint needed
     const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: custom(eth as Parameters<typeof custom>[0]) })
