@@ -7,7 +7,8 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     Nox,
-    euint256
+    euint256,
+    externalEuint256
 } from "@iexec-nox/nox-protocol-contracts/contracts/sdk/Nox.sol";
 import {ISecondaryMarket} from "../interfaces/ISecondaryMarket.sol";
 import {ICESTToken} from "../interfaces/ICESTToken.sol";
@@ -114,14 +115,21 @@ contract SecondaryMarket is ISecondaryMarket, Ownable, ReentrancyGuard, Pausable
 
     /// @notice Buyer executes a purchase against an active listing.
     ///         Flow:
-    ///           1. Buyer pays totalCost USDT
-    ///           2. Platform takes fee (reduced by CEST discount)
-    ///           3. Seller receives net USDT
-    ///           4. Nox.toEuint256 wraps cleartext amount as public encrypted handle
-    ///           5. ERC-7984 confidentialTransferFrom moves tokens seller → buyer
-    ///           6. Buyer registered as holder in PropertyRegistry
-    /// @param listingId ID of the listing to purchase
-    function executeBuy(uint256 listingId) external override nonReentrant whenNotPaused {
+    ///           1. Frontend submits iExec task → iApp runs inside Intel TDX TEE
+    ///           2. iApp calls Nox gateway, receives encrypted handle + proof for listing.tokenAmount
+    ///           3. Frontend calls this function with handle + proof from iApp output
+    ///           4. Buyer pays totalCost USDT; platform takes fee; seller receives net USDT
+    ///           5. Nox.fromExternal verifies handle authenticity and imports the euint256
+    ///           6. ERC-7984 confidentialTransferFrom moves tokens seller → buyer
+    ///           7. Buyer registered as holder in PropertyRegistry
+    /// @param listingId    ID of the listing to purchase
+    /// @param handle       Encrypted token amount handle produced by the iExec Nox iApp in TEE
+    /// @param handleProof  Input proof from Nox gateway validating the handle
+    function executeBuy(
+        uint256 listingId,
+        externalEuint256 handle,
+        bytes calldata handleProof
+    ) external override nonReentrant whenNotPaused {
         Listing storage listing = listings[listingId];
         if (!listing.active) revert ListingNotActive(listingId);
 
@@ -149,10 +157,10 @@ contract SecondaryMarket is ISecondaryMarket, Ownable, ReentrancyGuard, Pausable
         bool sellerOk = IERC20(usdtToken).transfer(listing.seller, sellerReceives);
         if (!sellerOk) revert TransferFailed();
 
-        // Convert the public cleartext token amount to an encrypted handle.
-        // Nox.toEuint256 creates a "public" encrypted value visible to all parties —
-        // appropriate here since the listing amount was already public.
-        euint256 encryptedAmount = Nox.toEuint256(listing.tokenAmount);
+        // Import the encrypted amount produced by the iExec Nox iApp running inside TEE.
+        // Nox.fromExternal verifies the handle proof, ensuring the value was sealed
+        // inside an Intel TDX enclave and was never exposed in plaintext on-chain.
+        euint256 encryptedAmount = Nox.fromExternal(handle, handleProof);
         Nox.allowThis(encryptedAmount);
         Nox.allow(encryptedAmount, address(this));
         Nox.allow(encryptedAmount, listing.seller);

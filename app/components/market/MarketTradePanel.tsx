@@ -178,17 +178,18 @@ export function MarketTradePanel({
                     borderColor: tradeType === 'sell' ? 'var(--status-error)' : undefined,
                   }}
                 >
-                  {tradeStep === 'approving'  ? '⏳ Approving USDT...'  :
-                   tradeStep === 'executing'  ? '⏳ Executing buy...'   :
-                   tradeStep === 'granting'   ? '⏳ Granting operator...' :
-                   tradeStep === 'listing'    ? '⏳ Creating listing...' :
-                   tradeType === 'buy'        ? '⚡ Buy Now'            :
+                  {tradeStep === 'encrypting' ? '🔐 iExec TEE encrypting...' :
+                   tradeStep === 'approving'  ? '⏳ Approving USDT...'       :
+                   tradeStep === 'executing'  ? '⏳ Executing buy...'         :
+                   tradeStep === 'granting'   ? '⏳ Granting operator...'     :
+                   tradeStep === 'listing'    ? '⏳ Creating listing...'      :
+                   tradeType === 'buy'        ? '⚡ Buy Now'                  :
                                                '📋 List for Sale'}
                 </button>
               )}
 
               <p className="text-[10px] font-body text-center" style={{ color: 'var(--text-ghost)' }}>
-                Platform fee: 0.5% · Powered by SecondaryMarket.sol
+                Platform fee: 0.5% · Buy amount encrypted via iExec TEE before blockchain call
               </p>
             </div>
           </motion.div>

@@ -1,6 +1,6 @@
 export type TradeType = 'buy' | 'sell'
 export type HandleStatus = 'idle' | 'initializing' | 'ready' | 'error'
-export type TradeStep = 'idle' | 'approving' | 'executing' | 'granting' | 'listing' | 'done' | 'error'
+export type TradeStep = 'idle' | 'encrypting' | 'approving' | 'executing' | 'granting' | 'listing' | 'done' | 'error'
 
 export interface MarketListingView {
   listingId?: number

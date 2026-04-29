@@ -115,7 +115,12 @@ export const SECONDARY_MARKET_ABI = [
     name: 'executeBuy',
     type: 'function' as const,
     stateMutability: 'nonpayable' as const,
-    inputs: [{ name: 'listingId', type: 'uint256' }],
+    inputs: [
+      { name: 'listingId',   type: 'uint256' },
+      // externalEuint256 ABI-encodes as bytes32 — produced by the iExec Nox iApp in TEE
+      { name: 'handle',      type: 'bytes32' },
+      { name: 'handleProof', type: 'bytes'   },
+    ],
     outputs: [],
   },
   {

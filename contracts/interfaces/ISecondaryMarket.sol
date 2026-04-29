@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {externalEuint256} from "@iexec-nox/nox-protocol-contracts/contracts/sdk/Nox.sol";
+
 /// @title ISecondaryMarket
 /// @author ChainEstate Team
 /// @notice Interface for the property token secondary market DEX
@@ -40,8 +42,10 @@ interface ISecondaryMarket {
         uint256 pricePerToken
     ) external returns (uint256 listingId);
 
-    /// @notice Buyer executes a purchase from a listing
-    function executeBuy(uint256 listingId) external;
+    /// @notice Buyer executes a purchase from a listing.
+    ///         handle and handleProof must be produced by the iExec Nox iApp running in a TEE —
+    ///         they encode the listing's tokenAmount as an encrypted euint256.
+    function executeBuy(uint256 listingId, externalEuint256 handle, bytes calldata handleProof) external;
 
     /// @notice Seller cancels their listing
     function cancelListing(uint256 listingId) external;

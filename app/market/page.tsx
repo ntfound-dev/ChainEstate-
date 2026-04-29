@@ -99,14 +99,32 @@ export default function MarketPage() {
 
     try {
       if (tradeType === 'buy') {
-        // ── Secondary market BUY: approve USDT → executeBuy ──────────────
+        // ── Secondary market BUY (iExec Nox TEE flow) ────────────────────
+        // Architecture (strict iExec compliance):
+        //   Step 1: Read on-chain listing to get exact tokenAmount + pricePerToken
+        //   Step 2: Submit iExec task → iApp runs in Intel TDX TEE → Nox gateway
+        //           seals tokenAmount as encrypted handle + proof
+        //   Step 3: Approve USDT for the exact listing cost
+        //   Step 4: executeBuy(listingId, handle, handleProof) — contract calls
+        //           Nox.fromExternal to import the TEE-sealed handle; no raw
+        //           tokenAmount ever touches the blockchain.
         if (!selected.listingId) {
           showToast('No listing ID', 'This listing does not have an on-chain ID yet.', 'error')
           return
         }
 
-        const priceUsdt6 = BigInt(Math.round(tradePrice * 1_000_000))
-        const totalUsdt = tokenAmount * priceUsdt6
+        // ── Step 1: Read actual listing data from the contract ────────────
+        const listingRaw = await walletClient.readContract({
+          address: ADDRESSES.secondaryMarket,
+          abi: SECONDARY_MARKET_ABI,
+          functionName: 'listings',
+          args: [BigInt(selected.listingId)],
+        }) as readonly [bigint, `0x${string}`, `0x${string}`, bigint, bigint, bigint, bigint, boolean]
+        // tuple: [listingId, seller, tokenContract, propertyId, tokenAmount, pricePerToken, listedAt, active]
+        const [, , , , listingTokenAmount, listingPricePerToken, , listingActive] = listingRaw
+        if (!listingActive) throw new Error('This listing is no longer active.')
+
+        const totalUsdt = listingTokenAmount * listingPricePerToken
 
         // Pre-check USDT balance (soft — skip if RPC unavailable)
         try {
@@ -127,18 +145,47 @@ export default function MarketPage() {
           // RPC read failed — proceed and let the on-chain tx handle it
         }
 
+        // ── Step 2: iExec iApp (Intel TDX TEE) → Nox encrypted handle ────
+        setTradeStep('encrypting')
+        showToast(
+          'iExec TEE encrypting',
+          'Step 1/3 — iApp running inside Intel TDX TEE to seal token amount via Nox...',
+          'info',
+        )
+
+        const iexecRes = await fetch('/api/iexec-buy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokenAmount: listingTokenAmount.toString(),
+            contractAddress: ADDRESSES.secondaryMarket,
+            buyerAddress: address,
+          }),
+        })
+        if (!iexecRes.ok) {
+          const errData = await iexecRes.json() as { error?: string }
+          throw new Error(errData.error ?? 'iExec iApp execution failed')
+        }
+        const { handle, handleProof } = await iexecRes.json() as { handle: `0x${string}`; handleProof: `0x${string}` }
+
+        // ── Step 3: Approve USDT ──────────────────────────────────────────
         setTradeStep('approving')
-        showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
+        showToast('Approve USDT', 'Step 2/3 — confirm USDT approval in your wallet.', 'info')
 
         const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
         const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
         const approveReceipt = await waitForReceipt(eth, approveTx)
         if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
 
+        // ── Step 4: executeBuy with TEE-sealed handle ─────────────────────
         setTradeStep('executing')
-        showToast('Execute buy', 'Step 2/2 — confirm purchase in your wallet.', 'info')
+        showToast('Execute buy', 'Step 3/3 — confirm purchase in your wallet.', 'info')
 
-        const buyData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'executeBuy', args: [BigInt(selected.listingId)] })
+        const buyData = encodeFunctionData({
+          abi: SECONDARY_MARKET_ABI,
+          functionName: 'executeBuy',
+          args: [BigInt(selected.listingId), handle, handleProof],
+        })
         const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] }) as `0x${string}`
         const buyReceipt = await waitForReceipt(eth, buyTx)
         if (buyReceipt.status === '0x0') throw new Error('Buy transaction reverted on-chain.')
@@ -146,7 +193,7 @@ export default function MarketPage() {
         setTxHash(buyTx)
         setTradeStep('done')
         setTxOpen(true)
-        showToast('Buy complete!', `${amount} ${selected.ticker} · 🔒 Confidential`, 'success')
+        showToast('Buy complete!', `${listingTokenAmount} ${selected.ticker} · 🔒 Encrypted via iExec TEE`, 'success')
         setAmount('')
 
       } else {

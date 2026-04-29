@@ -135,7 +135,7 @@ describe("SecondaryMarket", () => {
   it("should reject buy of cancelled listing", async () => {
     await market.connect(seller).createListing(propertyTokenAddress, 1, TOKEN_AMOUNT, TOKEN_PRICE);
     await market.connect(seller).cancelListing(1);
-    await expect(market.connect(buyer).executeBuy(1)).to.be.reverted;
+    await expect(market.connect(buyer).executeBuy(1, FAKE_HANDLE, FAKE_PROOF)).to.be.reverted;
   });
 
   it("should execute buy and transfer USDT to seller", async () => {
@@ -147,7 +147,7 @@ describe("SecondaryMarket", () => {
       .approve(await market.getAddress(), totalCost);
 
     const sellerBefore = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(seller.address);
-    await market.connect(buyer).executeBuy(1);
+    await market.connect(buyer).executeBuy(1, FAKE_HANDLE, FAKE_PROOF);
     const sellerAfter = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(seller.address);
 
     // Seller receives totalCost minus 0.5% fee
@@ -164,7 +164,7 @@ describe("SecondaryMarket", () => {
       .approve(await market.getAddress(), totalCost);
 
     const treasuryBefore = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(treasury.address);
-    await market.connect(buyer).executeBuy(1);
+    await market.connect(buyer).executeBuy(1, FAKE_HANDLE, FAKE_PROOF);
     const treasuryAfter = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(treasury.address);
 
     const expectedFee = (totalCost * 50n) / 10000n;
@@ -186,7 +186,7 @@ describe("SecondaryMarket", () => {
       .approve(await market.getAddress(), totalCost);
 
     const treasuryBefore = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(treasury.address);
-    await market.connect(buyer).executeBuy(1);
+    await market.connect(buyer).executeBuy(1, FAKE_HANDLE, FAKE_PROOF);
     const treasuryAfter = await (await ethers.getContractAt("IERC20", usdtAddress)).balanceOf(treasury.address);
 
     // PLATINUM = 100% discount → zero fee to treasury
