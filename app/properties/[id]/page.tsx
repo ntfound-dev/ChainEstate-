@@ -4,10 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createViemHandleClient } from '@iexec-nox/handle'
-import { createWalletClient, custom, parseUnits } from 'viem'
-import { writeContract } from 'viem/actions'
-import { usePublicClient } from 'wagmi'
+import { encodeFunctionData } from 'viem'
 import { useClientAccount as useAccount } from '../../components/web3/useClientAccount'
 import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
@@ -15,7 +12,7 @@ import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
 import { PROPERTIES } from '../../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '../../lib/contracts'
-import { arbitrumSepolia } from '../../lib/wagmi'
+import { arbitrumSepolia } from 'wagmi/chains'
 
 
 function extractMsg(err: unknown): string {
@@ -135,7 +132,6 @@ type BuyStep = 'idle' | 'encrypting' | 'approving' | 'purchasing' | 'done' | 'er
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
   const { isConnected, address } = useAccount()
-  const publicClient = usePublicClient({ chainId: arbitrumSepolia.id })
   const { showToast } = useToast()
   const mapQuery = encodeURIComponent(property.location)
 
@@ -164,7 +160,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
     if (!address) { showToast('Wallet not connected', 'Connect your wallet before buying.', 'error'); return }
-    if (!publicClient) { showToast('Network not ready', 'Arbitrum Sepolia RPC is not ready yet.', 'error'); return }
 
     const tokenAmount = BigInt(amountNumber)
     if (tokenAmount > BigInt(property.availableTokens)) {
@@ -172,68 +167,46 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       return
     }
 
-    const totalCostUsdt = tokenAmount * parseUnits(property.pricePerToken.toFixed(6), 6)
+    const priceUsdt6 = BigInt(Math.round(property.pricePerToken * 1_000_000))
+    const totalCostUsdt = tokenAmount * priceUsdt6
 
     try {
       await ensureArbitrumSepolia(eth)
-      await assertWalletRpcReady(eth)
       setTxHash(undefined)
-      const walletClient = createWalletClient({
-        account: address,
-        chain: arbitrumSepolia,
-        transport: custom(eth),
-      })
 
-      // Step 1: Encrypt via the official Nox handle SDK.
+      // Step 1: Encrypt via Nox gateway (server-side — no viem transport, no MetaMask RPC calls).
       setBuyStep('encrypting')
-      showToast('Encrypting', 'Preparing confidential input via iExec Nox SDK...', 'info')
+      showToast('Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
 
-      const handleClient = await createViemHandleClient(walletClient)
-      const { handle, handleProof } = await handleClient.encryptInput(
-        tokenAmount,
-        'uint256',
-        property.contractAddress as `0x${string}`,
-      )
+      const encRes = await fetch('/api/nox-encrypt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: tokenAmount.toString(), contractAddress: property.contractAddress, owner: address }),
+      })
+      const encJson = await encRes.json() as { handle?: string; handleProof?: string; error?: string }
+      if (!encRes.ok || encJson.error) throw new Error(encJson.error ?? 'Nox encryption failed')
+      const handle = encJson.handle as `0x${string}`
+      const handleProof = encJson.handleProof as `0x${string}`
 
-      // Step 2: Approve USDT.
+      // Step 2: Approve USDT (direct eth.request — no viem polling).
       setBuyStep('approving')
       showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
-      const approveTxHash = await writeContract(walletClient, {
-        account: address,
-        chain: arbitrumSepolia,
-        address: ADDRESSES.usdt,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [property.contractAddress as `0x${string}`, totalCostUsdt],
-      })
-      const approveReceipt = await publicClient.waitForTransactionReceipt({
-        hash: approveTxHash,
-        pollingInterval: 3000,
-        timeout: 120_000,
-      })
-      if (approveReceipt.status !== 'success') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
+      const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
+      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as string
+      const approveReceipt = await waitForReceipt(eth, approveTxHash)
+      if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
 
       // Step 3: Purchase tokens on-chain.
       setBuyStep('purchasing')
       showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
 
-      const purchaseTxHash = await writeContract(walletClient, {
-        account: address,
-        chain: arbitrumSepolia,
-        address: property.contractAddress as `0x${string}`,
-        abi: PROPERTY_TOKEN_ABI,
-        functionName: 'purchaseTokens',
-        args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount],
-      })
-      const purchaseReceipt = await publicClient.waitForTransactionReceipt({
-        hash: purchaseTxHash,
-        pollingInterval: 3000,
-        timeout: 120_000,
-      })
-      if (purchaseReceipt.status !== 'success') throw new Error('Token purchase reverted on-chain.')
+      const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle, handleProof, tokenAmount] })
+      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gas: '0x927C0' }] }) as string
+      const purchaseReceipt = await waitForReceipt(eth, purchaseTxHash)
+      if (purchaseReceipt.status === '0x0') throw new Error('Token purchase reverted on-chain.')
 
-      setTxHash(purchaseTxHash)
+      setTxHash(purchaseTxHash as `0x${string}`)
       setBuyStep('done')
       setTxOpen(true)
       showToast('Tokens purchased!', `${amount} ${property.ticker} · Balance encrypted 🔒`, 'success')
