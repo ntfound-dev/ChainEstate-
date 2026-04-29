@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createPublicClient, http, encodeFunctionData } from 'viem'
+import { createPublicClient, custom, encodeFunctionData } from 'viem'
 import { arbitrumSepolia } from 'viem/chains'
 import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { MarketHeader } from '../components/market/MarketHeader'
@@ -14,13 +14,20 @@ import { MARKET_LISTINGS, CEST_LISTING } from '../lib/marketData'
 import { PROPERTIES } from '../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '../lib/contracts'
 
-const rpcClient = createPublicClient({
-  chain: arbitrumSepolia,
-  transport: http('https://sepolia-rollup.arbitrum.io/rpc'),
-})
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
 declare global { interface Window { ethereum?: Ethereum } }
+
+function extractMsg(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>
+    const m = e.message ?? e.reason ?? e.error
+    if (typeof m === 'string' && m) return m
+  }
+  if (typeof err === 'string' && err) return err
+  return 'Transaction failed.'
+}
 
 export default function MarketPage() {
   const { isConnected, address } = useAccount()
@@ -56,6 +63,9 @@ export default function MarketPage() {
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
 
+    // Use wallet's own RPC — no external endpoint needed
+    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: custom(eth as Parameters<typeof custom>[0]) })
+
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
       showToast('Property not found', 'This listing is not mapped to a deployed contract.', 'error')
@@ -75,19 +85,34 @@ export default function MarketPage() {
         const priceUsdt6 = BigInt(Math.round(tradePrice * 1_000_000))
         const totalUsdt = tokenAmount * priceUsdt6
 
+        // Pre-check USDT balance via wallet RPC
+        const usdtBal = await walletClient.readContract({
+          address: ADDRESSES.usdt,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [address as `0x${string}`],
+        }) as bigint
+        if (usdtBal < totalUsdt) {
+          const have = (Number(usdtBal) / 1_000_000).toFixed(2)
+          const need = (Number(totalUsdt) / 1_000_000).toFixed(2)
+          throw new Error(`Insufficient USDT. You have $${have} but need $${need}. Get testnet USDT from the faucet.`)
+        }
+
         setTradeStep('approving')
-        showToast('Approve USDT', 'Step 1/2 — approve USDT for the secondary market.', 'info')
+        showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
         const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
         const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
-        await rpcClient.waitForTransactionReceipt({ hash: approveTx })
+        const approveReceipt = await walletClient.waitForTransactionReceipt({ hash: approveTx })
+        if (approveReceipt.status === 'reverted') throw new Error('USDT approval reverted on-chain.')
 
         setTradeStep('executing')
         showToast('Execute buy', 'Step 2/2 — confirm purchase in your wallet.', 'info')
 
         const buyData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'executeBuy', args: [BigInt(selected.listingId)] })
         const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] }) as `0x${string}`
-        await rpcClient.waitForTransactionReceipt({ hash: buyTx })
+        const buyReceipt = await walletClient.waitForTransactionReceipt({ hash: buyTx })
+        if (buyReceipt.status === 'reverted') throw new Error('Buy transaction reverted on-chain.')
 
         setTxHash(buyTx)
         setTradeStep('done')
@@ -110,14 +135,16 @@ export default function MarketPage() {
 
         const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [ADDRESSES.secondaryMarket, expiry] })
         const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gas: '0x30D40' }] }) as `0x${string}`
-        await rpcClient.waitForTransactionReceipt({ hash: grantTx })
+        const grantReceipt = await walletClient.waitForTransactionReceipt({ hash: grantTx })
+        if (grantReceipt.status === 'reverted') throw new Error('Grant operator reverted on-chain.')
 
         setTradeStep('listing')
         showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
 
         const listData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'createListing', args: [property.contractAddress as `0x${string}`, BigInt(property.tokenId), tokenAmount, pricePerTokenUsdt] })
         const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gas: '0x493E0' }] }) as `0x${string}`
-        await rpcClient.waitForTransactionReceipt({ hash: listTx })
+        const listReceipt = await walletClient.waitForTransactionReceipt({ hash: listTx })
+        if (listReceipt.status === 'reverted') throw new Error('Create listing reverted on-chain.')
 
         setTxHash(listTx)
         setTradeStep('done')
@@ -128,7 +155,7 @@ export default function MarketPage() {
       }
     } catch (err) {
       setTradeStep('error')
-      const msg = err instanceof Error ? err.message : 'Transaction failed.'
+      const msg = extractMsg(err)
       showToast('Transaction failed', msg.length > 120 ? msg.slice(0, 120) + '…' : msg, 'error')
     } finally {
       setTimeout(() => setTradeStep('idle'), 3000)
