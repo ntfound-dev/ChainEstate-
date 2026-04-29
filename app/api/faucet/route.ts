@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const rawKey = process.env.FAUCET_PRIVATE_KEY
+  const rawKey = process.env.FAUCET_PRIVATE_KEY?.trim()
   if (!rawKey) {
     return NextResponse.json({ error: 'Faucet wallet not configured' }, { status: 503 })
   }
