@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useWriteContract, usePublicClient } from 'wagmi'
+import { createPublicClient, http, encodeFunctionData } from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
 import { useClientAccount as useAccount } from '../../components/web3/useClientAccount'
 import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
@@ -12,6 +13,15 @@ import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
 import { PROPERTIES } from '../../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '../../lib/contracts'
+
+// Dedicated public client — bypasses wagmi config entirely
+const rpcClient = createPublicClient({
+  chain: arbitrumSepolia,
+  transport: http('https://sepolia-rollup.arbitrum.io/rpc'),
+})
+
+type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+declare global { interface Window { ethereum?: Ethereum } }
 
 const ACTIVITY = [
   { date: '2026/03/18 14:22', type: 'Token Purchase' },
@@ -25,8 +35,6 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
   const { isConnected, address } = useAccount()
   const { showToast } = useToast()
-  const { writeContractAsync } = useWriteContract()
-  const publicClient = usePublicClient()
   const mapQuery = encodeURIComponent(property.location)
 
   const [amount, setAmount] = useState('')
@@ -42,73 +50,53 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const handleBuy = async () => {
     if (!amount || parseFloat(amount) <= 0) return
 
+    const eth = window.ethereum
+    if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
+
     const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
     const totalCostUsdt = tokenAmount * 1_000_000n
 
     try {
-      // ── Step 1: Encrypt via server-side Nox proxy (bypasses domain auth) ─
+      // ── Step 1: Encrypt via server-side Nox proxy ─────────────────────
       setBuyStep('encrypting')
       showToast('🔒 Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
 
       const encRes = await fetch('/api/nox-encrypt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: tokenAmount.toString(),
-          contractAddress: property.contractAddress,
-          owner: address,
-        }),
+        body: JSON.stringify({ value: tokenAmount.toString(), contractAddress: property.contractAddress, owner: address }),
       })
-
       if (!encRes.ok) {
-        const errData = await encRes.json().catch(() => ({})) as { error?: string }
-        throw new Error(errData.error ?? `Nox encryption failed (${encRes.status})`)
+        const e = await encRes.json().catch(() => ({})) as { error?: string }
+        throw new Error(e.error ?? `Nox encryption failed (${encRes.status})`)
       }
-
       const { handle, handleProof } = await encRes.json() as { handle: string; handleProof: string }
 
-      // ── Step 2: Approve USDT spend ─────────────────────────────────────
+      // ── Step 2: Approve USDT — direct window.ethereum, no wagmi middleware
       setBuyStep('approving')
       showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
-      const approveTxHash = await writeContractAsync({
-        address: ADDRESSES.usdt,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [property.contractAddress as `0x${string}`, totalCostUsdt],
-        gas: 80_000n,
-      })
+      const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
+      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
+      await rpcClient.waitForTransactionReceipt({ hash: approveTxHash })
 
-      await publicClient!.waitForTransactionReceipt({ hash: approveTxHash })
-
-      // ── Step 3: Purchase tokens on-chain ───────────────────────────────
+      // ── Step 3: Purchase tokens on-chain ──────────────────────────────
       setBuyStep('purchasing')
       showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
 
-      const purchaseTxHash = await writeContractAsync({
-        address: property.contractAddress as `0x${string}`,
-        abi: PROPERTY_TOKEN_ABI,
-        functionName: 'purchaseTokens',
-        args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount],
-        gas: 600_000n,
-      })
-
-      await publicClient!.waitForTransactionReceipt({ hash: purchaseTxHash })
+      const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount] })
+      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gas: '0x927C0' }] }) as `0x${string}`
+      await rpcClient.waitForTransactionReceipt({ hash: purchaseTxHash })
 
       setTxHash(purchaseTxHash)
       setBuyStep('done')
       setTxOpen(true)
-      showToast(
-        'Tokens purchased!',
-        `${amount} ${property.ticker} · Balance encrypted 🔒`,
-        'success'
-      )
+      showToast('Tokens purchased!', `${amount} ${property.ticker} · Balance encrypted 🔒`, 'success')
       setAmount('')
     } catch (err) {
       setBuyStep('error')
       const msg = err instanceof Error ? err.message : 'Transaction failed.'
-      const shortMsg = msg.length > 120 ? msg.slice(0, 120) + '…' : msg
-      showToast('Transaction failed', shortMsg, 'error')
+      showToast('Transaction failed', msg.length > 120 ? msg.slice(0, 120) + '…' : msg, 'error')
     } finally {
       setTimeout(() => setBuyStep('idle'), 3000)
     }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useWriteContract, usePublicClient } from 'wagmi'
+import { createPublicClient, http, encodeFunctionData } from 'viem'
+import { arbitrumSepolia } from 'viem/chains'
 import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { MarketHeader } from '../components/market/MarketHeader'
 import { MarketListingsPanel } from '../components/market/MarketListingsPanel'
@@ -13,11 +14,17 @@ import { MARKET_LISTINGS, CEST_LISTING } from '../lib/marketData'
 import { PROPERTIES } from '../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '../lib/contracts'
 
+const rpcClient = createPublicClient({
+  chain: arbitrumSepolia,
+  transport: http('https://sepolia-rollup.arbitrum.io/rpc'),
+})
+
+type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+declare global { interface Window { ethereum?: Ethereum } }
+
 export default function MarketPage() {
-  const { isConnected } = useAccount()
+  const { isConnected, address } = useAccount()
   const { showToast } = useToast()
-  const { writeContractAsync } = useWriteContract()
-  const publicClient = usePublicClient()
 
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<MarketListingView | null>(null)
@@ -46,6 +53,9 @@ export default function MarketPage() {
   const handleExecute = async () => {
     if (!amount || parseFloat(amount) <= 0 || !selected) return
 
+    const eth = window.ethereum
+    if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
+
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
       showToast('Property not found', 'This listing is not mapped to a deployed contract.', 'error')
@@ -62,33 +72,22 @@ export default function MarketPage() {
           return
         }
 
-        // Price is in USDT 6 decimals: ask × 1_000_000, rounded
         const priceUsdt6 = BigInt(Math.round(tradePrice * 1_000_000))
         const totalUsdt = tokenAmount * priceUsdt6
 
         setTradeStep('approving')
         showToast('Approve USDT', 'Step 1/2 — approve USDT for the secondary market.', 'info')
 
-        const approveTx = await writeContractAsync({
-          address: ADDRESSES.usdt,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [ADDRESSES.secondaryMarket, totalUsdt],
-          gas: 80_000n,
-        })
-        await publicClient!.waitForTransactionReceipt({ hash: approveTx })
+        const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
+        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
+        await rpcClient.waitForTransactionReceipt({ hash: approveTx })
 
         setTradeStep('executing')
         showToast('Execute buy', 'Step 2/2 — confirm purchase in your wallet.', 'info')
 
-        const buyTx = await writeContractAsync({
-          address: ADDRESSES.secondaryMarket,
-          abi: SECONDARY_MARKET_ABI,
-          functionName: 'executeBuy',
-          args: [BigInt(selected.listingId)],
-          gas: 400_000n,
-        })
-        await publicClient!.waitForTransactionReceipt({ hash: buyTx })
+        const buyData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'executeBuy', args: [BigInt(selected.listingId)] })
+        const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] }) as `0x${string}`
+        await rpcClient.waitForTransactionReceipt({ hash: buyTx })
 
         setTxHash(buyTx)
         setTradeStep('done')
@@ -103,48 +102,27 @@ export default function MarketPage() {
           return
         }
 
-        // Price must be in USDT 6 decimals: e.g. $1.025 → 1_025_000
         const pricePerTokenUsdt = BigInt(Math.round(parseFloat(sellPrice) * 1_000_000))
-        // Operator expiry: 7 days from now
         const expiry = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
 
         setTradeStep('granting')
         showToast('Grant operator', 'Step 1/2 — allow the market to transfer your tokens.', 'info')
 
-        const grantTx = await writeContractAsync({
-          address: property.contractAddress as `0x${string}`,
-          abi: PROPERTY_TOKEN_ABI,
-          functionName: 'grantOperator',
-          args: [ADDRESSES.secondaryMarket, expiry],
-          gas: 200_000n,
-        })
-        await publicClient!.waitForTransactionReceipt({ hash: grantTx })
+        const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [ADDRESSES.secondaryMarket, expiry] })
+        const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gas: '0x30D40' }] }) as `0x${string}`
+        await rpcClient.waitForTransactionReceipt({ hash: grantTx })
 
         setTradeStep('listing')
         showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
 
-        const listTx = await writeContractAsync({
-          address: ADDRESSES.secondaryMarket,
-          abi: SECONDARY_MARKET_ABI,
-          functionName: 'createListing',
-          args: [
-            property.contractAddress as `0x${string}`,
-            BigInt(property.tokenId),
-            tokenAmount,
-            pricePerTokenUsdt,
-          ],
-          gas: 300_000n,
-        })
-        await publicClient!.waitForTransactionReceipt({ hash: listTx })
+        const listData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'createListing', args: [property.contractAddress as `0x${string}`, BigInt(property.tokenId), tokenAmount, pricePerTokenUsdt] })
+        const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gas: '0x493E0' }] }) as `0x${string}`
+        await rpcClient.waitForTransactionReceipt({ hash: listTx })
 
         setTxHash(listTx)
         setTradeStep('done')
         setTxOpen(true)
-        showToast(
-          'Listed!',
-          `${amount} ${property.ticker} @ $${sellPrice} USDT/token · Live on SecondaryMarket.sol`,
-          'success'
-        )
+        showToast('Listed!', `${amount} ${property.ticker} @ $${sellPrice} USDT/token · Live on SecondaryMarket.sol`, 'success')
         setAmount('')
         setSellPrice('')
       }
