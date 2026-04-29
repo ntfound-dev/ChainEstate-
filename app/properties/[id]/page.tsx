@@ -4,8 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createPublicClient, custom, encodeFunctionData } from 'viem'
-import { arbitrumSepolia } from 'viem/chains'
+import { encodeFunctionData } from 'viem'
 import { useClientAccount as useAccount } from '../../components/web3/useClientAccount'
 import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
@@ -27,6 +26,17 @@ function extractMsg(err: unknown): string {
 }
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+
+async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 3000))
+    try {
+      const receipt = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] }) as { status: '0x1' | '0x0' } | null
+      if (receipt !== null) return receipt
+    } catch { /* RPC hiccup — keep polling */ }
+  }
+  throw new Error('Transaction not confirmed after 2 minutes. Check Arbiscan.')
+}
 declare global { interface Window { ethereum?: Ethereum } }
 
 const ACTIVITY = [
@@ -59,27 +69,11 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
 
-    // Use wallet's own RPC — no external endpoint needed
-    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: custom(eth as Parameters<typeof custom>[0]) })
-
     const tokenAmount = BigInt(Math.max(1, Math.trunc(Number(amount))))
     const totalCostUsdt = tokenAmount * 1_000_000n
 
     try {
-      // ── Pre-check: verify USDT balance via wallet RPC ─────────────────
-      const usdtBal = await walletClient.readContract({
-        address: ADDRESSES.usdt,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [address as `0x${string}`],
-      }) as bigint
-      if (usdtBal < totalCostUsdt) {
-        const have = (Number(usdtBal) / 1_000_000).toFixed(2)
-        const need = (Number(totalCostUsdt) / 1_000_000).toFixed(2)
-        throw new Error(`Insufficient USDT. You have $${have} but need $${need}. Get testnet USDT from the faucet.`)
-      }
-
-      // ── Step 1: Encrypt via server-side Nox proxy ─────────────────────
+      // ── Step 1: Encrypt via Nox gateway (server-side proxy, no viem transport) ──
       setBuyStep('encrypting')
       showToast('🔒 Encrypting', 'Preparing confidential input via iExec Nox TEE...', 'info')
 
@@ -88,11 +82,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: tokenAmount.toString(), contractAddress: property.contractAddress, owner: address }),
       })
-      if (!encRes.ok) {
-        const e = await encRes.json().catch(() => ({})) as { error?: string }
-        throw new Error(e.error ?? `Nox encryption failed (${encRes.status})`)
-      }
-      const { handle, handleProof } = await encRes.json() as { handle: string; handleProof: string }
+      const encJson = await encRes.json() as { handle?: string; handleProof?: string; error?: string }
+      if (!encRes.ok || encJson.error) throw new Error(encJson.error ?? 'Nox encryption failed')
+      const handle = encJson.handle as `0x${string}`
+      const handleProof = encJson.handleProof as `0x${string}`
 
       // ── Step 2: Approve USDT ──────────────────────────────────────────
       setBuyStep('approving')
@@ -100,8 +93,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
       const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
       const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
-      const approveReceipt = await walletClient.waitForTransactionReceipt({ hash: approveTxHash })
-      if (approveReceipt.status === 'reverted') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
+      const approveReceipt = await waitForReceipt(eth, approveTxHash)
+      if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
 
       // ── Step 3: Purchase tokens on-chain ──────────────────────────────
       setBuyStep('purchasing')
@@ -109,8 +102,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
       const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount] })
       const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gas: '0x927C0' }] }) as `0x${string}`
-      const purchaseReceipt = await walletClient.waitForTransactionReceipt({ hash: purchaseTxHash })
-      if (purchaseReceipt.status === 'reverted') throw new Error('Token purchase reverted on-chain.')
+      const purchaseReceipt = await waitForReceipt(eth, purchaseTxHash)
+      if (purchaseReceipt.status === '0x0') throw new Error('Token purchase reverted on-chain.')
 
       setTxHash(purchaseTxHash)
       setBuyStep('done')

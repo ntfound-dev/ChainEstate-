@@ -29,6 +29,15 @@ function extractMsg(err: unknown): string {
   return 'Transaction failed.'
 }
 
+async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 3000))
+    const receipt = await eth.request({ method: 'eth_getTransactionReceipt', params: [hash] }) as { status: '0x1' | '0x0' } | null
+    if (receipt !== null) return receipt
+  }
+  throw new Error('Transaction not confirmed after 2 minutes. Check Arbiscan.')
+}
+
 export default function MarketPage() {
   const { isConnected, address } = useAccount()
   const { showToast } = useToast()
@@ -85,17 +94,23 @@ export default function MarketPage() {
         const priceUsdt6 = BigInt(Math.round(tradePrice * 1_000_000))
         const totalUsdt = tokenAmount * priceUsdt6
 
-        // Pre-check USDT balance via wallet RPC
-        const usdtBal = await walletClient.readContract({
-          address: ADDRESSES.usdt,
-          abi: ERC20_ABI,
-          functionName: 'balanceOf',
-          args: [address as `0x${string}`],
-        }) as bigint
-        if (usdtBal < totalUsdt) {
-          const have = (Number(usdtBal) / 1_000_000).toFixed(2)
-          const need = (Number(totalUsdt) / 1_000_000).toFixed(2)
-          throw new Error(`Insufficient USDT. You have $${have} but need $${need}. Get testnet USDT from the faucet.`)
+        // Pre-check USDT balance (soft — skip if RPC unavailable)
+        try {
+          const usdtBal = await walletClient.readContract({
+            address: ADDRESSES.usdt,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [address as `0x${string}`],
+          }) as bigint
+          if (usdtBal < totalUsdt) {
+            const have = (Number(usdtBal) / 1_000_000).toFixed(2)
+            const need = (Number(totalUsdt) / 1_000_000).toFixed(2)
+            throw new Error(`Insufficient USDT. You have $${have} but need $${need}. Get testnet USDT from the faucet.`)
+          }
+        } catch (checkErr) {
+          const msg = extractMsg(checkErr)
+          if (msg.startsWith('Insufficient USDT')) throw checkErr
+          // RPC read failed — proceed and let the on-chain tx handle it
         }
 
         setTradeStep('approving')
@@ -103,16 +118,16 @@ export default function MarketPage() {
 
         const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
         const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
-        const approveReceipt = await walletClient.waitForTransactionReceipt({ hash: approveTx })
-        if (approveReceipt.status === 'reverted') throw new Error('USDT approval reverted on-chain.')
+        const approveReceipt = await waitForReceipt(eth, approveTx)
+        if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
 
         setTradeStep('executing')
         showToast('Execute buy', 'Step 2/2 — confirm purchase in your wallet.', 'info')
 
         const buyData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'executeBuy', args: [BigInt(selected.listingId)] })
         const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] }) as `0x${string}`
-        const buyReceipt = await walletClient.waitForTransactionReceipt({ hash: buyTx })
-        if (buyReceipt.status === 'reverted') throw new Error('Buy transaction reverted on-chain.')
+        const buyReceipt = await waitForReceipt(eth, buyTx)
+        if (buyReceipt.status === '0x0') throw new Error('Buy transaction reverted on-chain.')
 
         setTxHash(buyTx)
         setTradeStep('done')
@@ -135,16 +150,16 @@ export default function MarketPage() {
 
         const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [ADDRESSES.secondaryMarket, expiry] })
         const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gas: '0x30D40' }] }) as `0x${string}`
-        const grantReceipt = await walletClient.waitForTransactionReceipt({ hash: grantTx })
-        if (grantReceipt.status === 'reverted') throw new Error('Grant operator reverted on-chain.')
+        const grantReceipt = await waitForReceipt(eth, grantTx)
+        if (grantReceipt.status === '0x0') throw new Error('Grant operator reverted on-chain.')
 
         setTradeStep('listing')
         showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
 
         const listData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'createListing', args: [property.contractAddress as `0x${string}`, BigInt(property.tokenId), tokenAmount, pricePerTokenUsdt] })
         const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gas: '0x493E0' }] }) as `0x${string}`
-        const listReceipt = await walletClient.waitForTransactionReceipt({ hash: listTx })
-        if (listReceipt.status === 'reverted') throw new Error('Create listing reverted on-chain.')
+        const listReceipt = await waitForReceipt(eth, listTx)
+        if (listReceipt.status === '0x0') throw new Error('Create listing reverted on-chain.')
 
         setTxHash(listTx)
         setTradeStep('done')
