@@ -76,6 +76,7 @@ export default function MarketPage() {
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [ADDRESSES.secondaryMarket, totalUsdt],
+          gas: 80_000n,
         })
         await publicClient!.waitForTransactionReceipt({ hash: approveTx })
 
@@ -87,6 +88,7 @@ export default function MarketPage() {
           abi: SECONDARY_MARKET_ABI,
           functionName: 'executeBuy',
           args: [BigInt(selected.listingId)],
+          gas: 400_000n,
         })
         await publicClient!.waitForTransactionReceipt({ hash: buyTx })
 
@@ -116,6 +118,7 @@ export default function MarketPage() {
           abi: PROPERTY_TOKEN_ABI,
           functionName: 'grantOperator',
           args: [ADDRESSES.secondaryMarket, expiry],
+          gas: 200_000n,
         })
         await publicClient!.waitForTransactionReceipt({ hash: grantTx })
 
@@ -132,6 +135,7 @@ export default function MarketPage() {
             tokenAmount,
             pricePerTokenUsdt,
           ],
+          gas: 300_000n,
         })
         await publicClient!.waitForTransactionReceipt({ hash: listTx })
 

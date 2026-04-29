@@ -76,6 +76,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [property.contractAddress as `0x${string}`, totalCostUsdt],
+        gas: 80_000n,
       })
 
       await publicClient!.waitForTransactionReceipt({ hash: approveTxHash })
@@ -89,6 +90,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         abi: PROPERTY_TOKEN_ABI,
         functionName: 'purchaseTokens',
         args: [handle as `0x${string}`, handleProof as `0x${string}`, tokenAmount],
+        gas: 600_000n,
       })
 
       await publicClient!.waitForTransactionReceipt({ hash: purchaseTxHash })
