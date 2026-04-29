@@ -172,6 +172,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
 
     try {
       await ensureArbitrumSepolia(eth)
+      await assertWalletRpcReady(eth)
       setTxHash(undefined)
 
       // Step 1: Run iExec TEE computation — encrypts tokenAmount inside Intel TDX enclave.

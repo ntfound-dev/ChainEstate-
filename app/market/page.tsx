@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createPublicClient, custom, encodeFunctionData } from 'viem'
+import { createPublicClient, http, encodeFunctionData } from 'viem'
 import { arbitrumSepolia } from 'viem/chains'
 import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { MarketHeader } from '../components/market/MarketHeader'
@@ -86,8 +86,8 @@ export default function MarketPage() {
       throw new Error('Switch MetaMask to Arbitrum Sepolia (chain ID 421614).')
     }
 
-    // Use wallet's own RPC — no external endpoint needed
-    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: custom(eth as Parameters<typeof custom>[0]) })
+    // Use a stable public RPC for reads — MetaMask RPC can be stale/misconfigured
+    const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http('https://sepolia-rollup.arbitrum.io/rpc') })
 
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
