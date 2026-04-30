@@ -35,6 +35,23 @@ async function getChainId(eth: Ethereum): Promise<number> {
   return Number(chainId)
 }
 
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://arbitrum-sepolia-rpc.publicnode.com'
+
+async function getGasPrice(): Promise<string> {
+  try {
+    const res = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
+    })
+    const { result } = await res.json() as { result: string }
+    const doubled = (BigInt(result) * 2n).toString(16)
+    return '0x' + doubled
+  } catch {
+    return '0x5F5E100' // 0.1 gwei fallback
+  }
+}
+
 async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 3000))
@@ -191,8 +208,9 @@ export default function MarketPage() {
         setTradeStep('approving')
         showToast('Approve USDT', 'Step 2/3 — confirm USDT approval in your wallet.', 'info')
 
+        const gasPrice = await getGasPrice()
         const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
-        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData }] }) as `0x${string}`
+        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gasPrice }] }) as `0x${string}`
         const approveReceipt = await waitForReceipt(eth, approveTx)
         if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
 
@@ -205,7 +223,7 @@ export default function MarketPage() {
           functionName: 'executeBuy',
           args: [BigInt(selected.listingId), handle, handleProof],
         })
-        const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData }] }) as `0x${string}`
+        const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gasPrice }] }) as `0x${string}`
         const buyReceipt = await waitForReceipt(eth, buyTx)
         if (buyReceipt.status === '0x0') throw new Error('Buy transaction reverted on-chain.')
 
@@ -228,8 +246,9 @@ export default function MarketPage() {
         setTradeStep('granting')
         showToast('Grant operator', 'Step 1/2 — allow the market to transfer your tokens.', 'info')
 
+        const sellGasPrice = await getGasPrice()
         const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [ADDRESSES.secondaryMarket, expiry] })
-        const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData }] }) as `0x${string}`
+        const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gasPrice: sellGasPrice }] }) as `0x${string}`
         const grantReceipt = await waitForReceipt(eth, grantTx)
         if (grantReceipt.status === '0x0') throw new Error('Grant operator reverted on-chain.')
 
@@ -237,7 +256,7 @@ export default function MarketPage() {
         showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
 
         const listData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'createListing', args: [property.contractAddress as `0x${string}`, BigInt(property.tokenId), tokenAmount, pricePerTokenUsdt] })
-        const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData }] }) as `0x${string}`
+        const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gasPrice: sellGasPrice }] }) as `0x${string}`
         const listReceipt = await waitForReceipt(eth, listTx)
         if (listReceipt.status === '0x0') throw new Error('Create listing reverted on-chain.')
 

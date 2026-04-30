@@ -34,6 +34,22 @@ async function getChainId(eth: Ethereum): Promise<number> {
   return Number(chainId)
 }
 
+async function getGasPrice(): Promise<string> {
+  try {
+    const res = await fetch(PRIMARY_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
+    })
+    const { result } = await res.json() as { result: string }
+    // Double the current gas price for safety margin
+    const doubled = (BigInt(result) * 2n).toString(16)
+    return '0x' + doubled
+  } catch {
+    return '0x5F5E100' // 0.1 gwei fallback
+  }
+}
+
 async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0x1' | '0x0' }> {
   for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 3000))
@@ -188,8 +204,9 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       setBuyStep('approving')
       showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
+      const gasPrice = await getGasPrice()
       const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
-      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData }] }) as string
+      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gasPrice }] }) as string
       const approveReceipt = await waitForReceipt(eth, approveTxHash)
       if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
 
@@ -198,7 +215,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
 
       const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle, handleProof, tokenAmount] })
-      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData }] }) as string
+      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gasPrice }] }) as string
       const purchaseReceipt = await waitForReceipt(eth, purchaseTxHash)
       if (purchaseReceipt.status === '0x0') throw new Error('Token purchase reverted on-chain.')
 
