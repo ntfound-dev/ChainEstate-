@@ -189,7 +189,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
 
       const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
-      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as string
+      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData }] }) as string
       const approveReceipt = await waitForReceipt(eth, approveTxHash)
       if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
 
@@ -198,7 +198,7 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
 
       const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle, handleProof, tokenAmount] })
-      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gas: '0x927C0' }] }) as string
+      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData }] }) as string
       const purchaseReceipt = await waitForReceipt(eth, purchaseTxHash)
       if (purchaseReceipt.status === '0x0') throw new Error('Token purchase reverted on-chain.')
 

@@ -192,7 +192,7 @@ export default function MarketPage() {
         showToast('Approve USDT', 'Step 2/3 — confirm USDT approval in your wallet.', 'info')
 
         const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
-        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] }) as `0x${string}`
+        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData }] }) as `0x${string}`
         const approveReceipt = await waitForReceipt(eth, approveTx)
         if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
 
@@ -205,7 +205,7 @@ export default function MarketPage() {
           functionName: 'executeBuy',
           args: [BigInt(selected.listingId), handle, handleProof],
         })
-        const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData, gas: '0x61A80' }] }) as `0x${string}`
+        const buyTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: buyData }] }) as `0x${string}`
         const buyReceipt = await waitForReceipt(eth, buyTx)
         if (buyReceipt.status === '0x0') throw new Error('Buy transaction reverted on-chain.')
 
@@ -229,7 +229,7 @@ export default function MarketPage() {
         showToast('Grant operator', 'Step 1/2 — allow the market to transfer your tokens.', 'info')
 
         const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [ADDRESSES.secondaryMarket, expiry] })
-        const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gas: '0x30D40' }] }) as `0x${string}`
+        const grantTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData }] }) as `0x${string}`
         const grantReceipt = await waitForReceipt(eth, grantTx)
         if (grantReceipt.status === '0x0') throw new Error('Grant operator reverted on-chain.')
 
@@ -237,7 +237,7 @@ export default function MarketPage() {
         showToast('Create listing', 'Step 2/2 — confirm listing creation in your wallet.', 'info')
 
         const listData = encodeFunctionData({ abi: SECONDARY_MARKET_ABI, functionName: 'createListing', args: [property.contractAddress as `0x${string}`, BigInt(property.tokenId), tokenAmount, pricePerTokenUsdt] })
-        const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData, gas: '0x493E0' }] }) as `0x${string}`
+        const listTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.secondaryMarket, data: listData }] }) as `0x${string}`
         const listReceipt = await waitForReceipt(eth, listTx)
         if (listReceipt.status === '0x0') throw new Error('Create listing reverted on-chain.')
 
