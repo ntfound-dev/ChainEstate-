@@ -12,9 +12,10 @@ interface ChatMessage {
 }
 
 const QUICK_PROMPTS = [
-  'How does iExec Nox keep balances private?',
-  'How does buying property tokens work?',
-  'How is rent distributed privately?',
+  'Which property has the highest yield?',
+  'How do I buy my first property token?',
+  'What is CEST and how do I stake it?',
+  'How does iExec Nox keep my balance private?',
 ]
 
 function SparkleIcon({ size = 14 }: { size?: number }) {
@@ -53,7 +54,7 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Ask me about ChainEstate — iExec Nox privacy, property tokens, rent distribution, or anything else. Powered by ChainGPT with full project context.',
+      content: 'Hi! I know everything about ChainEstate — all 5 properties, yields, contract addresses, how buying works, CEST staking tiers, iExec Nox privacy, the airdrop, faucet, and docs. Ask me anything.',
     },
   ])
   const bottomRef = useRef<HTMLDivElement>(null)

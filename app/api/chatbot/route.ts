@@ -5,6 +5,7 @@ import {
   BLOCKCHAIN_NETWORK,
   PRE_SET_TONES,
 } from '@chaingpt/generalchat/dist/enum/context.enum.js'
+import { CHAINESTATE_CONTEXT } from '../../lib/chatbotContext'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,13 +37,18 @@ export async function POST(request: NextRequest) {
       useCustomContext: true,
       contextInjection: {
         companyName: 'ChainEstate',
-        companyDescription:
-          'ChainEstate is a responsive Web3 real estate platform built on Arbitrum Sepolia with iExec Nox confidential token flows, private balances, and encrypted rent distribution.',
+        companyDescription: CHAINESTATE_CONTEXT,
         purpose:
-          'Help users understand properties, confidential ownership, rental income, token buying, and how iExec Nox privacy works inside ChainEstate.',
+          'You are the ChainEstate AI Copilot. Answer questions about ChainEstate products, properties, ' +
+          'token prices, yields, contract addresses, how to buy/sell/trade, iExec Nox privacy architecture, ' +
+          'CEST tokenomics, staking tiers, rent distribution, the airdrop, faucet, roadmap, and all docs. ' +
+          'Be specific — cite exact property names, yields, prices, and contract addresses from the knowledge base. ' +
+          'If asked about a specific property, give its full details. ' +
+          'If asked how to get started, explain the faucet → buy flow. ' +
+          'Never say you lack context about ChainEstate — you have the full product knowledge base.',
         cryptoToken: true,
         tokenInformation: {
-          tokenName: 'ChainEstate Estate Token',
+          tokenName: 'ChainEstate Token',
           tokenSymbol: 'CEST',
           blockchain: [BLOCKCHAIN_NETWORK.ARBITRUM],
         },
