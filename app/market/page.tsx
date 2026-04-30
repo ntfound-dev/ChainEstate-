@@ -37,6 +37,30 @@ async function getChainId(eth: Ethereum): Promise<number> {
 
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://arbitrum-sepolia-rpc.publicnode.com'
 
+const ARBITRUM_SEPOLIA_PARAMS = {
+  chainId: '0x66eee',
+  chainName: 'Arbitrum Sepolia',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: [
+    RPC_URL,
+    'https://arbitrum-sepolia-rpc.publicnode.com',
+    'https://rpc.ankr.com/arbitrum_sepolia',
+  ],
+  blockExplorerUrls: ['https://sepolia.arbiscan.io'],
+}
+
+async function ensureArbitrumSepolia(eth: Ethereum): Promise<void> {
+  try { await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] }) } catch { /* ignore */ }
+  const chainId = await getChainId(eth)
+  if (chainId === 421614) return
+  try {
+    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x66eee' }] })
+  } catch {
+    await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] })
+  }
+  if (await getChainId(eth) !== 421614) throw new Error('Switch your wallet to Arbitrum Sepolia (chain ID 421614).')
+}
+
 async function getGasPrice(): Promise<string> {
   try {
     const res = await fetch(RPC_URL, {
@@ -104,10 +128,7 @@ export default function MarketPage() {
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
     if (!address) { showToast('Wallet not connected', 'Connect your wallet before trading.', 'error'); return }
 
-    const chainId = await getChainId(eth)
-    if (chainId !== 421614) {
-      throw new Error('Switch MetaMask to Arbitrum Sepolia (chain ID 421614).')
-    }
+    await ensureArbitrumSepolia(eth)
 
     // Use env-configured RPC for reads — MetaMask RPC can be stale/misconfigured
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'
