@@ -119,7 +119,7 @@ Stake CEST to get cheaper trades. PLATINUM holders trade completely free.
 | Contract             | Address                                    |
 |----------------------|--------------------------------------------|
 | PropertyRegistry     | 0xCdBCA38E4C86bdC74Cd49D93cE2B88D3ecC00d5e |
-| SecondaryMarket      | 0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa |
+| SecondaryMarket (fixed-price P2P marketplace) | 0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa |
 | RentDistributor      | 0x80E0e5f6488FA2726c042a204344281974f72609 |
 | CEST Token           | 0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D |
 | Mock USDT (testnet)  | 0x9a822B9A50D090CfcCa1e6474efCd653112d8501 |

@@ -42,11 +42,11 @@ const CONTRACTS = [
   },
   {
     name: 'SecondaryMarket.sol',
-    badge: 'P2P DEX',
+    badge: 'P2P Marketplace',
     badgeColor: 'var(--gold-primary)',
     address: '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa',
     addressLabel: 'Secondary Market',
-    desc: 'Peer-to-peer order book for property token trading. Sellers list tokens with a public price; buyers execute. Token amounts are moved via confidentialTransferFrom (encrypted). CEST stakers get fee discounts.',
+    desc: 'Fixed-price P2P listing marketplace for property token trading. Sellers post a listing at a fixed price; buyers execute against it. Token amounts moved via confidentialTransferFrom (encrypted). CEST stakers get fee discounts.',
     inherits: ['ReentrancyGuard', 'Pausable'],
     functions: [
       { sig: 'createListing(address tokenContract, uint256 propertyId, uint256 tokenAmount, uint256 pricePerToken) → uint256 listingId', access: 'public', desc: 'Requires grantOperator first. pricePerToken in USDT 6 decimals (e.g. $1.025 = 1_025_000). Returns listingId.' },

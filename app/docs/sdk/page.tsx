@@ -3,7 +3,7 @@ const ENV_VARS = [
   { key: 'NEXT_PUBLIC_RPC_URL',         value: 'https://sepolia-rollup.arbitrum.io/rpc', desc: 'Public Arbitrum Sepolia RPC' },
   { key: 'NEXT_PUBLIC_USDT_ADDRESS',    value: '0x9a822B9A...',  desc: 'Mock USDT contract' },
   { key: 'NEXT_PUBLIC_REGISTRY',        value: '0xCdBCA38E...', desc: 'PropertyRegistry — lists properties and tracks holders' },
-  { key: 'NEXT_PUBLIC_SECONDARY_MARKET',value: '0x77836405...', desc: 'SecondaryMarket — P2P order book' },
+  { key: 'NEXT_PUBLIC_SECONDARY_MARKET',value: '0x77836405...', desc: 'SecondaryMarket — Fixed-price P2P listing marketplace' },
   { key: 'NEXT_PUBLIC_RENT_DISTRIBUTOR',value: '0x80E0e5f6...', desc: 'RentDistributor — monthly USDT to holders' },
   { key: 'NEXT_PUBLIC_CEST_TOKEN',      value: '0xC6c08db8...', desc: 'CEST ERC20Votes governance token' },
 ]
@@ -334,7 +334,7 @@ export default function SDKPage() {
           {[
             ['USDT (Mock)',          '0x9a822B9A50D090CfcCa1e6474efCd653112d8501', 'ERC-20 stablecoin — 6 decimals'],
             ['PropertyRegistry',    '0xCdBCA38E4C86bdC74Cd49D93cE2B88D3ecC00d5e', 'Factory + holder registry'],
-            ['SecondaryMarket',     '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa', 'P2P order book'],
+            ['SecondaryMarket',     '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa', 'Fixed-price P2P listing marketplace'],
             ['RentDistributor',     '0x80E0e5f6488FA2726c042a204344281974f72609', 'Monthly USDT distribution'],
             ['CESTToken',           '0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D', 'ERC20Votes governance token'],
             ['PEARL-DXB-001',       '0x853D51fBD5E288BF189FE0126d59f855c821a641', 'PropertyToken (example)'],
