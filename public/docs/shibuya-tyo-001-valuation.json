@@ -1,0 +1,22 @@
+{
+  "document": "Property Valuation Report",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "property": {
+    "name": "Shibuya Terrace",
+    "location": "Shibuya, Tokyo, Japan",
+    "valuationDate": "2026-02-28",
+    "estimatedMarketValue": "$380,000",
+    "builtYear": "2019",
+    "targetAPY": "5.9%",
+    "currentOccupancy": "91%"
+  },
+  "methodology": "Discounted Cash Flow (DCF) + Comparable Market Analysis (CMA)",
+  "assumptions": [
+    "Rental income based on current Shibuya short-term rental market rates",
+    "Valuation does not account for JPY/USD fluctuations",
+    "Token price pegged at $1.00 USDT for primary market purchases"
+  ],
+  "disclaimer": "This valuation is for testnet demonstration purposes only."
+}

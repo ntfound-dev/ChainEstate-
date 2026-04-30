@@ -1,0 +1,33 @@
+{
+  "document": "SPV Structure Document",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "network": "Arbitrum Sepolia (chainId 421614)",
+  "property": { "name": "Marina Heights", "location": "Marina Bay, Singapore", "totalValuation": "$620,000" },
+  "tokenization": {
+    "ticker": "MARINA-SGP-001",
+    "tokenStandard": "ERC-7984 (iExec Nox Confidential Token)",
+    "totalSupply": "620,000",
+    "pricePerToken": "$1.00 USDT",
+    "targetAPY": "7.2%",
+    "contractAddress": "0x57D15966CD4203cC8FbC1fd6763Be935d27D1178",
+    "status": "SOLD OUT — only available on SecondaryMarket"
+  },
+  "spvStructure": {
+    "type": "Special Purpose Vehicle (SPV)",
+    "legalEntity": "Marina Heights SPV Ltd.",
+    "jurisdiction": "British Virgin Islands",
+    "directors": ["ChainEstate Labs Ltd."],
+    "purpose": "Fractional ownership and rental income distribution of Marina Heights, Singapore",
+    "incomeDistribution": "90% to token holders · 5% platform fee · 5% maintenance reserve",
+    "distributionFrequency": "Monthly via RentDistributor.sol on Arbitrum Sepolia"
+  },
+  "privacyMechanism": {
+    "protocol": "iExec Nox ERC-7984",
+    "teeProvider": "Intel TDX via iExec Network",
+    "iAppAddress": "0xB11bC7288eE239F6536829E410d22Eb514C5E282",
+    "description": "Token balances encrypted as euint256. No on-chain observer can read individual holdings."
+  },
+  "disclaimer": "This document is for informational purposes on the Arbitrum Sepolia testnet. Not financial advice."
+}

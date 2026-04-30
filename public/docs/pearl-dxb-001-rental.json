@@ -1,0 +1,20 @@
+{
+  "document": "Rental Agreement Summary",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "property": { "name": "The Pearl Residences", "location": "Jumeirah, Dubai, UAE" },
+  "rentalTerms": {
+    "monthlyGrossRent": "$2,833",
+    "tenantClassification": "Short-term corporate",
+    "leaseTerm": "Rolling month-to-month",
+    "renewalOption": "Yes — at prevailing market rate"
+  },
+  "incomeDistribution": {
+    "holderShare": "90%",
+    "platformFee": "5%",
+    "maintenanceReserve": "5%",
+    "distributionMechanism": "RentDistributor.sol — monthly USDT to all registered holders"
+  },
+  "disclaimer": "Agreement summary for testnet demonstration. Not a legally binding document."
+}

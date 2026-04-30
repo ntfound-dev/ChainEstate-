@@ -1,0 +1,20 @@
+{
+  "document": "Lease Agreement Summary",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "property": { "name": "Canary Wharf Executive", "location": "Canary Wharf, London, UK" },
+  "rentalTerms": {
+    "monthlyGrossRent": "$3,825",
+    "tenantClassification": "Corporate long-term",
+    "leaseTerm": "12-month fixed",
+    "renewalOption": "Yes — at prevailing market rate"
+  },
+  "incomeDistribution": {
+    "holderShare": "90%",
+    "platformFee": "5%",
+    "maintenanceReserve": "5%",
+    "distributionMechanism": "RentDistributor.sol — monthly USDT to all registered holders"
+  },
+  "disclaimer": "Agreement summary for testnet demonstration. Not a legally binding document."
+}

@@ -306,6 +306,104 @@ export default function ContractsPage() {
         </div>
       </div>
 
+      {/* IPFS Document Registry */}
+      <div className="rounded-xl overflow-hidden mb-10" style={{ border: '1px solid rgba(212,175,55,0.3)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4" style={{ background: 'rgba(212,175,55,0.06)', borderBottom: '1px solid rgba(212,175,55,0.2)' }}>
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full" style={{ background: 'var(--gold-primary)' }} />
+            <h2 className="font-display text-base" style={{ color: 'var(--text-primary)' }}>IPFS Document Registry</h2>
+            <span className="px-2 py-0.5 rounded text-[9px] font-body uppercase tracking-wider" style={{ background: 'rgba(212,175,55,0.12)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.3)' }}>
+              10 / 10 Pinned
+            </span>
+          </div>
+          <span className="text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>Pinned via Pinata · Arbitrum Sepolia</span>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          <p className="text-sm font-body leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            All legal documents are pinned to IPFS via Pinata and accessible via <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>ipfs.io</code> and <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>cloudflare-ipfs.com</code> gateways.
+            CIDs are immutable — content is guaranteed identical across all gateways.
+          </p>
+
+          {[
+            {
+              property: 'The Pearl Residences', ticker: 'PEARL-DXB-001',
+              docs: [
+                { name: 'SPV Structure Document',    cid: 'QmaVooqBwZjjkCQAvfodgtpGvfmifqQQgyPkj45m3AXMfu' },
+                { name: 'Property Valuation Report', cid: 'Qmep6ua83jnqGEYgFvEzFt7xuXntP7mCDhSGy9VqH4m92w' },
+                { name: 'Rental Agreement',          cid: 'QmcNvbSwHecj9sxHZvz9GaJwCZcWnCLbALCes653kBY7KZ' },
+              ],
+            },
+            {
+              property: 'Shibuya Terrace', ticker: 'SHIBUYA-TYO-001',
+              docs: [
+                { name: 'SPV Structure Document',    cid: 'QmdCLkDwBq9KcGBmDB1NGsGxEtJd5KqgsW2vAMhR1qaXqT' },
+                { name: 'Property Valuation Report', cid: 'QmQoKfhdfUfuWwTKcpZ3eeiMSqsasntftSSbkMzA32h1sU' },
+              ],
+            },
+            {
+              property: 'Marina Heights', ticker: 'MARINA-SGP-001',
+              docs: [
+                { name: 'SPV Structure Document', cid: 'QmPzTpiTzYcQNJ12eGRjvYtXVj6vHtcHK2UtJZpfD3wtAJ' },
+              ],
+            },
+            {
+              property: 'Canary Wharf Executive', ticker: 'CANARY-LON-001',
+              docs: [
+                { name: 'SPV Structure Document',    cid: 'QmZf53DUoSH5wGJKeLPrLq4SFbaKj2nncWNa5TnJ9rjAVu' },
+                { name: 'Property Valuation Report', cid: 'QmQTNv8wSxmtAhnUZwb2jtVHKWVhW9x8u1nmdZ2d5pzuek' },
+                { name: 'Lease Agreement',           cid: 'QmaMgjXMqUvTbwMLicL2TcAbhR6mxHuz4JEeoXoA3MYnfF' },
+              ],
+            },
+            {
+              property: 'Azure Barcelona Suite', ticker: 'AZURE-BCN-001',
+              docs: [
+                { name: 'SPV Structure Document', cid: 'QmUe6PK91ZHbPGtwE6tqyp1K2AX2NYboLvzBy9usd99oxq' },
+              ],
+            },
+          ].map(p => (
+            <div key={p.ticker}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-data" style={{ color: 'var(--gold-primary)' }}>{p.ticker}</span>
+                <span className="text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>— {p.property}</span>
+              </div>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+                {p.docs.map((doc, i) => (
+                  <div
+                    key={doc.cid}
+                    className="grid grid-cols-[1fr_auto] items-center px-4 py-3 gap-4"
+                    style={{ borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}
+                  >
+                    <div>
+                      <p className="text-xs font-body mb-0.5" style={{ color: 'var(--text-secondary)' }}>{doc.name}</p>
+                      <code className="text-[10px] font-data break-all" style={{ color: 'var(--text-ghost)' }}>{doc.cid}</code>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-body uppercase tracking-widest"
+                        style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', color: 'var(--nox-green)' }}
+                      >
+                        <span className="h-1 w-1 rounded-full" style={{ background: 'var(--nox-green)' }} />
+                        Pinned
+                      </span>
+                      <a
+                        href={`https://ipfs.io/ipfs/${doc.cid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-body transition-opacity hover:opacity-70"
+                        style={{ color: 'var(--gold-primary)' }}
+                      >
+                        ↗ IPFS
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Contract cards */}
       <div className="space-y-8">
         {CONTRACTS.map(c => (

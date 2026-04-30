@@ -33,12 +33,11 @@ export const PROPERTIES = [
     tokenStandard: 'ERC-7984',
     chain: 'Arbitrum Sepolia',
     tokenId: 1,
-    // CIDs shown as reference — Pinata upload pending for remaining properties
-    metadataCid: null as string | null,
+        metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document',    cid: 'QmbFMke1KXqnYyBBWxB74N4c5sb55GDhezr6C9uQkNFvXC', size: '284 KB', pinned: true },
-      { name: 'Property Valuation Report', cid: 'QmSMcjzE7NVgKE3FtmgMMQ8GKmfgMfmHqBEkDhsPdMp4BZ', size: '1.2 MB', pinned: true },
-      { name: 'Rental Agreement',          cid: 'QmNLs71PCDGLbZXBCJkFgPFVtpBYqxMUhBKBzH3EvmQS8d', size: '96 KB',  pinned: true },
+      { name: 'SPV Structure Document',    cid: 'QmaVooqBwZjjkCQAvfodgtpGvfmifqQQgyPkj45m3AXMfu', size: '284 KB', pinned: true },
+      { name: 'Property Valuation Report', cid: 'Qmep6ua83jnqGEYgFvEzFt7xuXntP7mCDhSGy9VqH4m92w', size: '1.2 MB', pinned: true },
+      { name: 'Rental Agreement',          cid: 'QmcNvbSwHecj9sxHZvz9GaJwCZcWnCLbALCes653kBY7KZ', size: '96 KB',  pinned: true },
     ],
   },
   {
@@ -71,8 +70,8 @@ export const PROPERTIES = [
     tokenId: 2,
     metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document',    cid: 'QmTvKqWjp3oLnmWdH4bQ5YrE6xKsCjA2GpnFt4UhVMfXeZ', size: '291 KB', pinned: true },
-      { name: 'Property Valuation Report', cid: 'QmXG8UtQ7JC8JuHCPhGbUPGTEhUJhiAJsbFAhDSDcWMGcH', size: '980 KB', pinned: true },
+      { name: 'SPV Structure Document',    cid: 'QmdCLkDwBq9KcGBmDB1NGsGxEtJd5KqgsW2vAMhR1qaXqT', size: '291 KB', pinned: true },
+      { name: 'Property Valuation Report', cid: 'QmQoKfhdfUfuWwTKcpZ3eeiMSqsasntftSSbkMzA32h1sU', size: '980 KB', pinned: true },
     ],
   },
   {
@@ -105,7 +104,7 @@ export const PROPERTIES = [
     tokenId: 3,
     metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document', cid: 'QmWp2KnDxL4FsAhBtCvPqR8mYe3XjUzVN7wGkMiTbQfHsJ', size: '318 KB', pinned: true },
+      { name: 'SPV Structure Document', cid: 'QmPzTpiTzYcQNJ12eGRjvYtXVj6vHtcHK2UtJZpfD3wtAJ', size: '318 KB', pinned: true },
     ],
   },
   {
@@ -136,9 +135,9 @@ export const PROPERTIES = [
     tokenId: 4,
     metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document',    cid: 'QmGs3WpT8XcAkBnDvLrEjYqN4mZsKi2PfUhVoCb6MtRxQu', size: '305 KB', pinned: true },
-      { name: 'Property Valuation Report', cid: 'QmHk7TxF2WqAsBnCpDvLrMjYeN5zKi8GfUhVoCb4MtRxQu', size: '1.4 MB', pinned: true },
-      { name: 'Lease Agreement',           cid: 'QmJm9VxG3XqAsBnCpEvLrNjYeP6zKi9GfUhWoCb4MtRxQT', size: '128 KB', pinned: true },
+      { name: 'SPV Structure Document',    cid: 'QmZf53DUoSH5wGJKeLPrLq4SFbaKj2nncWNa5TnJ9rjAVu', size: '305 KB', pinned: true },
+      { name: 'Property Valuation Report', cid: 'QmQTNv8wSxmtAhnUZwb2jtVHKWVhW9x8u1nmdZ2d5pzuek', size: '1.4 MB', pinned: true },
+      { name: 'Lease Agreement',           cid: 'QmaMgjXMqUvTbwMLicL2TcAbhR6mxHuz4JEeoXoA3MYnfF', size: '128 KB', pinned: true },
     ],
   },
   {
@@ -169,7 +168,7 @@ export const PROPERTIES = [
     tokenId: 5,
     metadataCid: null as string | null,
     documents: [
-      { name: 'SPV Structure Document', cid: 'QmLs4XpG9ZcBkCnEvNrFjAqO8nAsLj6QgVhXoCb9NuSyRw', size: '276 KB', pinned: true },
+      { name: 'SPV Structure Document', cid: 'QmUe6PK91ZHbPGtwE6tqyp1K2AX2NYboLvzBy9usd99oxq', size: '276 KB', pinned: true },
     ],
   },
 ]

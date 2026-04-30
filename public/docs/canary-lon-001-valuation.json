@@ -1,0 +1,22 @@
+{
+  "document": "Property Valuation Report",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "property": {
+    "name": "Canary Wharf Executive",
+    "location": "Canary Wharf, London, UK",
+    "valuationDate": "2026-02-28",
+    "estimatedMarketValue": "$850,000",
+    "builtYear": "2017",
+    "targetAPY": "5.4%",
+    "currentOccupancy": "88%"
+  },
+  "methodology": "Discounted Cash Flow (DCF) + Comparable Market Analysis (CMA)",
+  "assumptions": [
+    "Rental income based on Canary Wharf corporate executive rental market",
+    "Valuation does not account for GBP/USD fluctuations",
+    "Token price pegged at $1.00 USDT for primary market purchases"
+  ],
+  "disclaimer": "This valuation is for testnet demonstration purposes only."
+}

@@ -457,9 +457,9 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h2 className="font-display text-lg" style={{ color: 'var(--text-primary)' }}>Legal Documents</h2>
                 <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--nox-green)' }} />
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: property.documents.some(d => d.pinned) ? 'var(--nox-green)' : 'var(--gold-primary)' }} />
                   <span className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>
-                    {property.documents.length} {property.documents.length === 1 ? 'file' : 'files'} · pinned on IPFS
+                    {property.documents.length} {property.documents.length === 1 ? 'file' : 'files'} · {property.documents.every(d => d.pinned) ? 'pinned on IPFS' : property.documents.some(d => d.pinned) ? `${property.documents.filter(d => d.pinned).length} pinned · ${property.documents.filter(d => !d.pinned).length} pending` : 'pending IPFS pin'}
                   </span>
                 </div>
               </div>
@@ -484,34 +484,59 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span
-                          className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-body uppercase tracking-widest"
-                          style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', color: 'var(--nox-green)' }}
-                        >
-                          <span className="h-1 w-1 rounded-full" style={{ background: 'var(--nox-green)' }} />
-                          Pinned
-                        </span>
-                        <div className="flex gap-2">
-                          <a
-                            href={`https://ipfs.io/ipfs/${doc.cid}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-body transition-opacity hover:opacity-70"
-                            style={{ color: 'var(--gold-primary)' }}
-                          >
-                            ↗ IPFS
-                          </a>
-                          <span style={{ color: 'var(--border-visible)' }}>·</span>
-                          <a
-                            href={`https://cloudflare-ipfs.com/ipfs/${doc.cid}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-body transition-opacity hover:opacity-70"
-                            style={{ color: 'var(--text-ghost)' }}
-                          >
-                            CF Gateway
-                          </a>
-                        </div>
+                        {doc.pinned ? (
+                          <>
+                            <span
+                              className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-body uppercase tracking-widest"
+                              style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', color: 'var(--nox-green)' }}
+                            >
+                              <span className="h-1 w-1 rounded-full" style={{ background: 'var(--nox-green)' }} />
+                              Pinned
+                            </span>
+                            <div className="flex gap-2">
+                              <a
+                                href={`https://ipfs.io/ipfs/${doc.cid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-body transition-opacity hover:opacity-70"
+                                style={{ color: 'var(--gold-primary)' }}
+                              >
+                                ↗ IPFS
+                              </a>
+                              <span style={{ color: 'var(--border-visible)' }}>·</span>
+                              <a
+                                href={`https://cloudflare-ipfs.com/ipfs/${doc.cid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-body transition-opacity hover:opacity-70"
+                                style={{ color: 'var(--text-ghost)' }}
+                              >
+                                CF Gateway
+                              </a>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-body uppercase tracking-widest"
+                              style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', color: 'var(--gold-primary)' }}
+                            >
+                              <span className="h-1 w-1 rounded-full" style={{ background: 'var(--gold-primary)' }} />
+                              Pending
+                            </span>
+                            {'docUrl' in doc && doc.docUrl ? (
+                              <a
+                                href={doc.docUrl as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-body transition-opacity hover:opacity-70"
+                                style={{ color: 'var(--gold-primary)' }}
+                              >
+                                ↗ View Doc
+                              </a>
+                            ) : null}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

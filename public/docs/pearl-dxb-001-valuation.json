@@ -1,0 +1,22 @@
+{
+  "document": "Property Valuation Report",
+  "version": "1.0",
+  "issuer": "ChainEstate Labs",
+  "issuedDate": "2026-03-01",
+  "property": {
+    "name": "The Pearl Residences",
+    "location": "Jumeirah, Dubai, UAE",
+    "valuationDate": "2026-02-28",
+    "estimatedMarketValue": "$500,000",
+    "builtYear": "2022",
+    "targetAPY": "6.8%",
+    "currentOccupancy": "94%"
+  },
+  "methodology": "Discounted Cash Flow (DCF) + Comparable Market Analysis (CMA)",
+  "assumptions": [
+    "Rental income based on current Dubai Marina market rates",
+    "Valuation does not account for currency fluctuations",
+    "Token price pegged at $1.00 USDT for primary market purchases"
+  ],
+  "disclaimer": "This valuation is for testnet demonstration purposes only."
+}
