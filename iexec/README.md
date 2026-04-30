@@ -1,192 +1,94 @@
-# iApp hello-world
+# ChainEstate iApp — iExec Nox TEE Encryption
 
-This project is an iExec Decentralized Confidential Computing serverless
-application leveraging Trusted Execution Environment (TEE).
+Dockerized Node.js application running inside **Intel TDX Trusted Execution Environment** on the iExec network. Its sole purpose: receive a token amount + contract addresses, call the Nox gateway from inside the enclave, and return an encrypted `{ handle, handleProof }` pair that can be imported on-chain via `Nox.fromExternal()`.
 
-This project was scaffolded with `iapp init`.
+## Deployed
 
-- [Quick start](#quick-start)
-  - [Prerequisites](#prerequisites)
-  - [`iapp` main commands](#iapp-main-commands)
-  - [Develop](#develop)
-  - [Test locally](#test-locally)
-  - [Deploy on iExec](#deploy-on-iexec)
-  - [Run on iExec](#run-on-iexec)
-- [Project overview](#project-overview)
-- [iApp development guidelines](#iapp-development-guidelines)
-  - [iApp inputs](#iapp-inputs)
-  - [iApp outputs](#iapp-outputs)
-  - [working with libraries](#working-with-libraries)
+| | |
+|---|---|
+| **iApp Address** | `0xB11bC7288eE239F6536829E410d22Eb514C5E282` |
+| **Docker Image** | `jancok075/iexec:0.0.1-tdx-1f1d5e8f915a` |
+| **Chain** | arbitrum-sepolia-testnet (421614) |
+| **Tag** | `tee,tdx` |
+| **App Order** | Published — 1,000,000 volume, price 0 |
 
-## Quick start
+## What It Does
 
-### Prerequisites
-
-- `iapp` CLI installed locally
-- `docker` installed locally
-- [dockerhub](https://hub.docker.com/) account
-- ethereum wallet
-
-### `iapp` main commands
-
-- [`iapp init`](#develop)
-- [`iapp test`](#test-locally)
-- [`iapp deploy`](#deploy-on-iexec)
-
-### Develop
-
-`iapp init` scaffolds a ready to hack iApp template.
-
-Start hacking by editing the source code in [./src](./src/).
-
-See [iApp development guidelines](#iapp-development-guidelines) for more details
-on the iApp development framework.
-
-### Test locally
-
-Use the `iapp test` command to run your app locally and check your app fulfills
-the framework's [requirements for outputs](#iapp-outputs).
-
-```sh
-iapp test
+```
+iExec Worker (Intel TDX enclave)
+   │
+   │  args: "<tokenAmount> <contractAddressHex> <buyerAddressHex>"
+   │  (0x prefix stripped by API route — re-added inside iApp)
+   │
+   ▼  POST https://nox-gateway.../v0/secrets
+      {
+        value: uint256 as 32-byte hex,
+        solidityType: "uint256",
+        applicationContract: "0x...",
+        owner: "0x..."
+      }
+   │
+   ▼  Nox Gateway (only reachable from verified TDX enclave)
+      ← { handle: bytes32, handleProof: bytes }
+   │
+   ▼  writes /iexec_out/result.json
+      { handle, handleProof, tokenAmount, contractAddress, buyerAddress }
 ```
 
-> ℹ️ Use the following **options** with `iapp test` to simulate
-> [inputs](#iapp-inputs):
->
-> - `--args <args>` simulates the app invocation with public input
->   [args](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#args).
-> - `--inputFile <url>` simulates the app invocation with public
->   [input files](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#input-files).
-> - `--requesterSecret <index=value>` simulates the app invocation with
->   [requester secrets](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#requester-secrets).
-> - `--protectedData [mock name]` simulates the app invocation with a secret
->   [protected data](https://protocol.docs.iex.ec/for-developers/technical-references/application-iohttps://protocol.docs.iex.ec/for-developers/technical-references/application-io#protected-data).
-> - if your app uses an
->   [app secret](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#app-developer-secret),
->   `iapp test` will prompt you to set the app secret and simulate the run of
->   the app with it. You can choose to save the secret for further reuse by
->   `iapp test` and `iapp deploy`.
+The Nox gateway rejects requests from outside a real TEE — so `handle` can only be created inside an attested enclave. On-chain, `Nox.fromExternal(handle, handleProof)` verifies this before minting the encrypted balance.
 
-Check the test output in the [output](./output/) directory.
+## Args Format
 
-> ℹ️ Files used by the app while running `iapp test` are located in the
-> [input](./input/) directory.
+The iApp receives 3 space-separated args (without `0x` prefix on addresses):
 
-### Deploy on iExec
-
-Use the `iapp deploy` command to transform your app into a TEE app and deploy it
-on the iExec decentralized platform.
-
-```sh
-iapp deploy
+```
+<tokenAmount> <contractAddressHex> <buyerAddressHex>
 ```
 
-> ℹ️ for apps using an
-> [app secret](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#app-developer-secret)
->
-> The app secret is provisioned once, at the app deployment time. If an app
-> secret was already provided to `iapp test` and saved in
-> [iapp.config.json](./iapp.config.json), `iapp deploy` will reuse this secret.
-
-### Run on iExec
-
-Use the `run` command to run a deployed app on the iExec decentralized platform.
-
-```sh
-iapp run <iapp-address>
+Example:
+```
+100 77836405DC14Ca1Ef0304041ec8D3B4166424cfa 834De729cb9dF77451DBc6bf7FD05F475B011Ac7
 ```
 
-> ℹ️ Use the following **options** with `iapp run` to inject inputs:
->
-> - `--args <args>` run the app with public input
->   [args](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#args)
-> - `--inputFile <url>` run the app with public
->   [input files](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#input-files)
-> - `--requesterSecret <index=value>` run the app with
->   [requester secrets](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#requester-secrets)
-> - `--protectedData <protected-data-address>` run the app with a secret
->   [protected data](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#protected-data)
+> **Why no 0x?** The iExec CLI interprets `0x`-prefixed hex as JavaScript number literals, losing precision on 160-bit addresses. The API route strips `0x` before building `iexec_args`; the iApp re-adds it internally.
 
-## Project overview
+## Local Test
 
-- [iapp.config.json](./iapp.config.json) configuration file for the `iapp`
-  commands (⚠️ this file contains sensitive information such as credentials or
-  wallet and should never be committed in a public repository).
-- [src/](./src/) where your code lives when you [develop](#develop) your app.
-- [Dockerfile](./Dockerfile) how to build your app docker image.
-- [input/](./input/) input directory for your [local tests](#test-locally).
-- [output/](./output/) output directory for your [local tests](#test-locally).
-- [cache/](./cache/) directory contains traces of your past app
-  [deployments](#deploy-on-iexec) and [runs](#run-on-iexec).
-
-## iApp development guidelines
-
-iApps are serverless Decentralized Confidential Computing applications running
-on iExec's decentralized workers. This framework gives the guidelines to build
-such an application.
-
-### iApp inputs
-
-iApps can process different kind of inputs:
-
-- Requester inputs:
-
-  - public
-    [args](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#args)
-  - public
-    [input files](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#input-files)
-  - [requester secrets](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#requester-secrets)
-
-- App developer inputs
-
-  - [app secret](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#app-developer-secret)
-
-- Third party inputs:
-
-  - secret
-    [protected data](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#protected-data)
-
-### iApp outputs
-
-iApp's must write
-[output](https://protocol.docs.iex.ec/for-developers/technical-references/application-io#application-outputs)
-files in the `IEXEC_OUT` (`/iexec_out/`) directory.
-
-Each iApp run must produce a specific [`computed.json`](#computedjson) file.
-
-> ⚠️ **Output size limitation:**  
-> The results uploaded by the worker must not exceed **50 MB**.  
-> If the size exceeds this limit, the task will fail with the error
-> `POST_COMPUTE_FAILED_UNKNOWN_ISSUE`.  
-> Ensure your iApp generates outputs within this limit during testing.
-
-#### `computed.json`
-
-The `computed.json` file is a JSON file referencing a deterministic result in
-the `IEXEC_OUT` directory (any iApp run with the same inputs should create the
-same deterministic result).
-
-```json
-{
-  "deterministic-output-path": "iexec_out/path/to/deterministic/result"
-}
+```bash
+cd iexec
+iapp test --args "100 77836405DC14Ca1Ef0304041ec8D3B4166424cfa 834De729cb9dF77451DBc6bf7FD05F475B011Ac7"
 ```
 
-> ℹ️ Only files referenced in `deterministic-output-path` must be deterministic,
-> other files produced in the `IEXEC_OUT` directory can be non-deterministic.
+Expected output in console:
+```
+Encrypting tokenAmount=100 for contract=0x7783... owner=0x834D...
+Encryption successful. handle=0x000...
+```
 
-### working with libraries
+Check `output/result.json` for the full response.
 
-iApp can use libraries as soon as these libraries are installed while building
-the project's [`Dockerfile`](./Dockerfile).
+> Note: `iapp test` runs outside a real TDX enclave. The Nox gateway still returns a handle for testing purposes, but in production the gateway verifies TDX attestation.
 
-> ℹ️ **Limitation**
->
-> Transforming an app into a TEE application requires a base image (image
-> `FROM`) compatible with the transformation. Currently only a small set of base
-> images are available.
->
-> - make sure installed libraries can run within the base image
-> - do not try to replace the base image in the Dockerfile, this would lead to
->   failing TEE transformation.
+## Redeploy
+
+```bash
+cd iexec
+iapp deploy          # builds Docker, pushes to DockerHub, registers on iExec
+iexec app publish 0xB11bC7288eE239F6536829E410d22Eb514C5E282 \
+  --chain arbitrum-sepolia-testnet --tag tee,tdx
+```
+
+After redeploy, update `IEXEC_IAPP_ADDRESS` in Vercel environment variables.
+
+## RLC Requirements
+
+Each task costs **0.1 RLC** (100,000,000 nRLC). The requester wallet (`PRIVATE_KEY` env var) must have RLC staked in its iExec account:
+
+```bash
+iexec account show --chain arbitrum-sepolia-testnet
+iexec account deposit 500000000 --chain arbitrum-sepolia-testnet  # deposit 0.5 RLC
+```
+
+## Source
+
+[src/app.js](./src/app.js) — the full iApp logic (~70 lines).

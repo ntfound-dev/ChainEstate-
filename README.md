@@ -9,8 +9,8 @@
 [![Arbitrum Sepolia](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-blue?logo=ethereum)](https://sepolia.arbiscan.io)
 [![iExec Nox](https://img.shields.io/badge/Privacy-iExec%20Nox%20ERC--7984-00e5a0)](https://docs.iex.ec/nox-protocol)
 [![ChainGPT](https://img.shields.io/badge/AI-ChainGPT-gold)](https://chaingpt.org)
-[![Tests](https://img.shields.io/badge/Tests-60%20passing-green)](#)
-[![CEST](https://img.shields.io/badge/CEST-$0.04-yellow)](#cest-token)
+[![Tests](https://img.shields.io/badge/Tests-73%20passing-green)](#)
+[![Live](https://img.shields.io/badge/Live-chain--estate--rouge.vercel.app-brightgreen)](https://chain-estate-rouge.vercel.app)
 
 </div>
 
@@ -23,6 +23,7 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 - 🔒 **Encrypted balances** — Your token holdings are private. No one on-chain can see how much you own.
 - 💰 **Private yield** — Monthly rental income distributed without revealing per-investor amounts.
 - 🔄 **Real secondary market** — List and buy property tokens on-chain via `SecondaryMarket.sol`.
+- 🤖 **iExec TEE** — Token amounts sealed inside Intel TDX enclaves before touching the blockchain.
 - 🏆 **CEST governance** — Stake for fee discounts (up to 100% free trading) and on-chain voting.
 - 🤖 **AI Assistant** — Powered by ChainGPT for Web3 help and smart contract insights.
 - 🪂 **Genesis Airdrop** — 250M CEST pool ($10M) for early community members.
@@ -34,7 +35,7 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 | Challenge | Status |
 |-----------|--------|
 | **ChainGPT** — AI-powered Web3 product | ✅ ChainGPT SDK integrated (`AIChatbot`) |
-| **iExec Nox** — ERC-7984 Confidential Tokens | ✅ All 5 utility types implemented |
+| **iExec Nox** — ERC-7984 Confidential Tokens | ✅ Full TEE pipeline: iApp → Nox gateway → on-chain |
 
 ### Confidential Token Utility — iExec Nox ERC-7984
 
@@ -43,7 +44,7 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 | Utility | Implementation | Contract |
 |---------|---------------|----------|
 | **Private Payments** | `purchaseTokens(handle, handleProof, clearAmount)` — amount encrypted via Intel TDX TEE before reaching the chain | `PropertyToken.sol` |
-| **Private Transfers** | `SecondaryMarket.executeBuy()` calls `confidentialTransferFrom` — amounts invisible to observers | `SecondaryMarket.sol` |
+| **Private Transfers** | `SecondaryMarket.executeBuy(listingId, handle, handleProof)` — amount sealed by TEE, imported via `Nox.fromExternal()` | `SecondaryMarket.sol` |
 | **Rewards** | USDT rent distributed to all holders — events show totals only, never per-investor amounts | `RentDistributor.sol` |
 | **Governance** | Token-gated proposals and votes. Balance privacy eliminates visible whale dominance | `ConfidentialGovernance.sol` |
 | **Access Control** | `onlyHolder` modifier gates governance to verified `PropertyToken` holders via `registry.isHolder()` | `ConfidentialGovernance.sol` |
@@ -64,20 +65,63 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 
 ---
 
+## Privacy Architecture — iExec TEE Flow
+
+Raw token amounts **never touch the blockchain**. Every buy goes through Intel TDX TEE:
+
+```
+Frontend
+   │
+   ▼  POST /api/iexec-buy  { tokenAmount, contractAddress, buyerAddress }
+   │
+Server (Next.js API route)
+   │  iExec SDK: fetchAppOrderbook → fetchWorkerpoolOrderbook
+   │             → createRequestorder → matchOrders → computeTaskId
+   │  Returns: { taskid, dealid }
+   │
+   ▼  Frontend polls GET /api/iexec-poll?taskid=...  every 5s
+   │
+iExec Network (Intel TDX TEE Worker)
+   │  iApp (Docker, TDX-attested) receives: tokenAmount contractHex buyerHex
+   │  → POST Nox Gateway: { value: uint256Hex, solidityType, applicationContract, owner }
+   │  ← Nox Gateway returns: { handle: bytes32, handleProof: bytes }
+   │  iApp writes result.json → uploaded to IPFS
+   │
+   ▼  /api/iexec-poll downloads ZIP → parses result.json → returns { handle, handleProof }
+   │
+Frontend
+   │  1. USDT.approve(contractAddress, totalCost)
+   │  2. purchaseTokens(handle, handleProof, clearAmount)
+   │     └─ Nox.fromExternal(handle, handleProof) → euint256 balance (encrypted)
+   ▼
+Arbitrum Sepolia — only encrypted handle ever on-chain
+```
+
+### Why iExec + Nox?
+
+- **Nox gateway** only accepts requests from verified TEE enclaves — raw amounts cannot be faked
+- **`Nox.fromExternal(handle, handleProof)`** on-chain verifies the proof came from a real TDX enclave
+- **`Nox.toEuint256()`** (the insecure alternative) is intentionally NOT used — it would bypass TEE verification
+
+---
+
 ## On-Chain Transaction Flows
 
 ### Primary Market Buy (`/properties/[id]`)
 ```
-1. encryptInput(tokenAmount, 'uint256', propertyContract)  ← @iexec-nox/handle SDK
-   → { handle: bytes32, handleProof: bytes }
+1. POST /api/iexec-buy → iExec TEE task submitted
+   Frontend polls /api/iexec-poll every 5s until:
+   ← { handle: bytes32, handleProof: bytes }  (sealed inside Intel TDX)
 
-2. usdt.approve(propertyContract, tokenAmount × 1_000_000)  ← USDT 6 decimals
+2. USDT.approve(propertyContract, tokenAmount × 1_000_000)
 
 3. propertyToken.purchaseTokens(handle, handleProof, clearAmount)
-   → balance stored as euint256 (encrypted)
+   └─ balance stored as euint256 (encrypted via Nox.fromExternal)
 ```
 
 ### Secondary Market Sell (`/market`)
+> Listing amount is intentionally public — price discovery requires it.
+> Seller's own balance was already encrypted at purchase time.
 ```
 1. propertyToken.grantOperator(secondaryMarket, expiry)  ← 7-day window
 
@@ -88,33 +132,31 @@ ChainEstate lets anyone buy fractional ownership of premium real estate (Dubai, 
 
 ### Secondary Market Buy (`/market`)
 ```
-1. usdt.approve(secondaryMarket, totalCost)
+1. POST /api/iexec-buy → iExec TEE task for listing's tokenAmount
+   Frontend polls /api/iexec-poll every 5s until:
+   ← { handle: bytes32, handleProof: bytes }
 
-2. secondaryMarket.executeBuy(listingId)
-   → confidentialTransferFrom: seller → buyer (encrypted)
+2. USDT.approve(secondaryMarket, listingTokenAmount × pricePerToken)
+
+3. secondaryMarket.executeBuy(listingId, handle, handleProof)
+   └─ Nox.fromExternal(handle, handleProof) → confidentialTransferFrom (encrypted)
 ```
 
 ---
 
-## Privacy Architecture
+## iApp — Intel TDX TEE Application
 
-```
-Investor Wallet
-      │
-      ▼  @iexec-nox/handle: createViemHandleClient → encryptInput()
-      │  Intel TDX TEE returns { handle: bytes32, handleProof: bytes }
-      ▼
-PropertyToken.purchaseTokens(handle, handleProof, clearAmount)
-      │  euint256 balance — encrypted, readable only via Handle Gateway
-      │
-      ▼  distributeRent()
-RentDistributor → USDT per holder (events: totals only, never per-investor)
+Deployed on iExec network (arbitrum-sepolia-testnet):
 
-SecondaryMarket
-      │  listing.tokenAmount = public (needed for price discovery)
-      │  PropertyToken euint256 balance stays ENCRYPTED throughout
-      ▼  confidentialTransferFrom via Nox TEE
-```
+| | |
+|---|---|
+| **iApp Address** | `0xB11bC7288eE239F6536829E410d22Eb514C5E282` |
+| **Docker Image** | `jancok075/iexec:0.0.1-tdx-1f1d5e8f915a` |
+| **Chain** | arbitrum-sepolia-testnet (421614) |
+| **Tag** | `tee,tdx` (Intel TDX enclave) |
+| **Nox Gateway** | `https://2e1800fc...noxprotocol.dev` |
+
+The iApp receives `tokenAmount contractAddress buyerAddress` as args, calls the Nox gateway from inside the enclave, and writes `{ handle, handleProof, tokenAmount, contractAddress, buyerAddress }` to `result.json`.
 
 ---
 
@@ -130,15 +172,6 @@ SecondaryMarket
 | Standard | ERC20Votes (governance) |
 | Contract | [`0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D`](https://sepolia.arbiscan.io/address/0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D) |
 
-### Token Allocation
-| Category | Amount | % |
-|----------|--------|---|
-| Ecosystem | 300M CEST | 30% |
-| Airdrop | 250M CEST | 25% |
-| Investor | 200M CEST | 20% |
-| Team | 150M CEST | 15% |
-| Reserve | 100M CEST | 10% |
-
 ### Staking Tiers
 | Tier | Stake Required | USD Value | Trading Fee |
 |------|---------------|-----------|-------------|
@@ -152,7 +185,7 @@ SecondaryMarket
 
 ## Smart Contract Addresses — Arbitrum Sepolia
 
-> All contracts live on chainId 421614. Full list in `deployments.json`.
+> All contracts live on chainId 421614.
 
 ### Core Contracts
 | Contract | Address |
@@ -163,18 +196,15 @@ SecondaryMarket
 | SecondaryMarket | [`0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa`](https://sepolia.arbiscan.io/address/0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa) |
 | ConfidentialGovernance | [`0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14`](https://sepolia.arbiscan.io/address/0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14) |
 | MockUSDT (testnet) | [`0x9a822B9A50D090CfcCa1e6474efCd653112d8501`](https://sepolia.arbiscan.io/address/0x9a822B9A50D090CfcCa1e6474efCd653112d8501) |
-| Treasury | `0x834De729cb9dF77451DBc6bf7FD05F475B011Ac7` |
 
 ### Property Tokens (ERC-7984) — All 5 Live on Arbitrum Sepolia
-| Property | Ticker | Supply | Price | Contract |
-|----------|--------|--------|-------|----------|
-| The Pearl Residences, Dubai | PEARL-DXB-001 | 500,000 | $1.00 | [`0x853D51fB...`](https://sepolia.arbiscan.io/address/0x853D51fBD5E288BF189FE0126d59f855c821a641) |
-| Shibuya Terrace, Tokyo | SHIBUYA-TYO-001 | 380,000 | $1.00 | [`0x457d78AD...`](https://sepolia.arbiscan.io/address/0x457d78AD2912923897B93fD82d502aD0B34E54eA) |
-| Marina Heights, Singapore | MARINA-SGP-001 | 620,000 | $1.00 | [`0x57D15966...`](https://sepolia.arbiscan.io/address/0x57D15966CD4203cC8FbC1fd6763Be935d27D1178) |
-| Canary Wharf Executive, London | CANARY-LON-001 | 850,000 | $1.00 | [`0x7fB7e724...`](https://sepolia.arbiscan.io/address/0x7fB7e7245DB49a6a869A21962f907C76ec0F5b23) |
-| Azure Barcelona Suite | AZURE-BCN-001 | 290,000 | $1.00 | [`0xA3dDfe78...`](https://sepolia.arbiscan.io/address/0xA3dDfe781BDbb2F376B776F02aA6A8c379c12DFe) |
-
-All 5 confirmed live: `propertyCount = 5` on-chain, `pricePerToken = 1_000_000` (1 USDT, 6 dec).
+| Property | Ticker | Supply | Contract |
+|----------|--------|--------|----------|
+| The Pearl Residences, Dubai | PEARL-DXB-001 | 500,000 | [`0x853D51fB...`](https://sepolia.arbiscan.io/address/0x853D51fBD5E288BF189FE0126d59f855c821a641) |
+| Shibuya Terrace, Tokyo | SHIBUYA-TYO-001 | 380,000 | [`0x457d78AD...`](https://sepolia.arbiscan.io/address/0x457d78AD2912923897B93fD82d502aD0B34E54eA) |
+| Marina Heights, Singapore | MARINA-SGP-001 | 620,000 | [`0x57D15966...`](https://sepolia.arbiscan.io/address/0x57D15966CD4203cC8FbC1fd6763Be935d27D1178) |
+| Canary Wharf Executive, London | CANARY-LON-001 | 850,000 | [`0x7fB7e724...`](https://sepolia.arbiscan.io/address/0x7fB7e7245DB49a6a869A21962f907C76ec0F5b23) |
+| Azure Barcelona Suite | AZURE-BCN-001 | 290,000 | [`0xA3dDfe78...`](https://sepolia.arbiscan.io/address/0xA3dDfe781BDbb2F376B776F02aA6A8c379c12DFe) |
 
 ---
 
@@ -184,19 +214,23 @@ All 5 confirmed live: `propertyCount = 5` on-chain, `pricePerToken = 1_000_000` 
 |-------|-----------|
 | Chain | Arbitrum Sepolia (chainId 421614) |
 | Privacy | iExec Nox Protocol — ERC-7984 Confidential Tokens |
+| TEE | Intel TDX via iExec network (iApp: `0xB11bC7...`) |
 | Smart Contracts | Solidity 0.8.28, Hardhat 2.28, TypeScript |
 | Frontend | Next.js 14 App Router, Tailwind CSS, Framer Motion |
-| Web3 | Wagmi v2, Viem, `@iexec-nox/handle` |
+| Web3 | Wagmi v2, Viem |
+| iExec SDK | `iexec` npm package — order matching, task polling, result fetch |
 | AI | ChainGPT SDK (`@chaingpt/generalchat`) |
+| Deployment | Vercel (frontend) + iExec network (TEE worker) |
 
 ---
 
 ## Quick Start
 
 ```bash
-git clone <repo>
+git clone https://github.com/ntfound-dev/ChainEstate-
 cd ChainEstate
 npm install
+cp .env.example .env.local  # fill PRIVATE_KEY, RPC, IEXEC_IAPP_ADDRESS
 npm run dev
 # Open http://localhost:3000
 ```
@@ -205,18 +239,19 @@ Get testnet tokens at `/faucet` (wallet required):
 - **1,000 USDT** — buy property tokens
 - **2,400 CEST** (~$96) — governance + staking
 
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PRIVATE_KEY` | Wallet private key — signs iExec request orders |
+| `IEXEC_IAPP_ADDRESS` | `0xB11bC7288eE239F6536829E410d22Eb514C5E282` |
+| `ARBITRUM_SEPOLIA_RPC` | Server-side RPC (PublicNode or Infura) |
+| `NEXT_PUBLIC_RPC_URL` | Client-side RPC for reads and MetaMask injection |
+| `NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC` | Fallback client RPC |
+
 ### Run Tests
 ```bash
-npm run test   # 60 passing
-```
-
-### Deploy Contracts (already live — optional)
-```bash
-cp .env.example .env  # fill PRIVATE_KEY, RPC, etc.
-npm run compile
-npm run deploy:testnet
-npx hardhat run scripts/list-properties.ts --network arbitrumSepolia
-npm run verify:testnet
+npm run test   # 73 passing
 ```
 
 ---
@@ -226,10 +261,8 @@ npm run verify:testnet
 Each property exposes ERC-721 metadata (OpenSea standard):
 ```
 GET /api/nft/pearl-dxb-001
-GET /api/nft/shibuya-tyo-001
-GET /api/nft/marina-sgp-001
-GET /api/nft/canary-lon-001
 GET /api/nft/azure-bcn-001
+...
 ```
 
 ---
@@ -246,11 +279,10 @@ GET /api/nft/azure-bcn-001
 
 ## Links
 
-- 🌐 [iExec Nox Docs](https://docs.iex.ec/nox-protocol/getting-started/welcome)
-- 🔬 [Nox cDefi Demo + USDT Faucet](https://cdefi.iex.ec/)
-- 🤖 [ChainGPT Platform](https://chaingpt.org)
-- 📦 [iExec Nox NPM](https://www.npmjs.com/org/iexec-nox)
+- 🌐 [Live App](https://chain-estate-rouge.vercel.app)
+- 🔬 [iExec Nox Docs](https://docs.iex.ec/nox-protocol/getting-started/welcome)
 - 📊 [Arbiscan — Arbitrum Sepolia](https://sepolia.arbiscan.io)
+- 🤖 [ChainGPT Platform](https://chaingpt.org)
 
 ---
 
