@@ -281,7 +281,7 @@ All 10 legal documents are pinned on IPFS via Pinata. CIDs are immutable.
 ### Prerequisites
 
 - Node.js 20+
-- npm 10+
+- `make` (GNU Make — pre-installed on macOS/Linux; Windows: use WSL or Git Bash)
 - MetaMask or any EIP-1193 wallet
 - Arbitrum Sepolia ETH for gas ([Google Cloud Faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) → bridge at [portal.arbitrum.io](https://portal.arbitrum.io/bridge?destinationChain=arbitrum-sepolia))
 
@@ -290,7 +290,7 @@ All 10 legal documents are pinned on IPFS via Pinata. CIDs are immutable.
 ```bash
 git clone https://github.com/ntfound-dev/ChainEstate-
 cd ChainEstate
-npm install
+make install
 ```
 
 ### 2. Environment Variables
@@ -317,12 +317,12 @@ NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC=https://arbitrum-sepolia-rpc.publicnode.com
 CHAINGPT_API_KEY=your_chaingpt_api_key
 ```
 
-> **Note:** The wallet at `PRIVATE_KEY` needs testnet RLC on Bellecour (iExec's chain) to pay for TEE tasks (0.1 RLC per deal). Get from [faucet.iex.ec](https://faucet.iex.ec).
+> **Note:** `PRIVATE_KEY` wallet needs testnet RLC on Bellecour to pay for TEE tasks (0.1 RLC per deal). Get from [faucet.iex.ec](https://faucet.iex.ec).
 
 ### 3. Run Development Server
 
 ```bash
-npm run dev
+make dev
 # Open http://localhost:3000
 ```
 
@@ -331,6 +331,33 @@ npm run dev
 Visit `/faucet` with MetaMask connected (Arbitrum Sepolia network):
 - **1,000 USDT** — buy property tokens
 - **2,400 CEST** (~$96) — governance + staking
+
+---
+
+## Make Commands
+
+```
+make help             Show all available commands
+
+make install          Install all npm dependencies
+make dev              Run Next.js frontend (localhost:3000)
+
+make compile          Compile Solidity contracts
+make test             Run all 73 tests
+make typecheck        TypeScript type check (contracts)
+
+make node             Start local Hardhat node
+make deploy-local     Deploy contracts to local Hardhat node
+make seed-local       Seed demo data on local node
+
+make deploy-testnet   Deploy to Arbitrum Sepolia
+make seed-testnet     Seed demo data on Arbitrum Sepolia
+make verify-testnet   Verify contracts on Arbiscan
+
+make pin-docs         Pin all legal documents to IPFS via Pinata
+make clean            Remove build artifacts (artifacts/ cache/ typechain-types/)
+make rebuild          clean + compile
+```
 
 ---
 
@@ -369,14 +396,9 @@ Visit `/faucet` with MetaMask connected (Arbitrum Sepolia network):
 > Only needed for a fresh deployment. Official contracts are already live.
 
 ```bash
-# Compile
-npx hardhat compile
-
-# Deploy to Arbitrum Sepolia
-npx hardhat run scripts/deploy.ts --network arbitrumSepolia
-
-# Verify on Arbiscan
-npx hardhat verify --network arbitrumSepolia <ADDRESS> [constructor args]
+make compile                  # Compile all contracts
+make deploy-testnet           # Deploy to Arbitrum Sepolia
+make verify-testnet           # Verify on Arbiscan
 ```
 
 Addresses are saved to `deployments.json`.
@@ -386,8 +408,7 @@ Addresses are saved to `deployments.json`.
 ## Run Tests
 
 ```bash
-npm run test          # 73 passing
-npx hardhat coverage  # Coverage report
+make test             # 73 passing
 ```
 
 | Test File | Coverage |

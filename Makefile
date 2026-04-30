@@ -1,7 +1,7 @@
 # ChainEstate — Development Makefile
 # Usage: make <target>
 
-.PHONY: help install dev compile test deploy-local seed-local deploy-testnet seed-testnet verify-testnet clean
+.PHONY: help install dev compile test typecheck pin-docs deploy-local seed-local deploy-testnet seed-testnet verify-testnet clean rebuild
 
 HH = TS_NODE_PROJECT=tsconfig.hardhat.json npx hardhat
 
@@ -15,7 +15,7 @@ help:
 	@echo "  make dev              Run Next.js frontend (localhost:3000)"
 	@echo ""
 	@echo "  make compile          Compile Solidity contracts"
-	@echo "  make test             Run all 60 tests"
+	@echo "  make test             Run all 73 tests"
 	@echo ""
 	@echo "  make deploy-local     Deploy contracts to local Hardhat node"
 	@echo "  make seed-local       Seed demo data on local node"
@@ -25,6 +25,7 @@ help:
 	@echo "  make seed-testnet     Seed demo data on Arbitrum Sepolia"
 	@echo "  make verify-testnet   Verify contracts on Arbiscan"
 	@echo ""
+	@echo "  make pin-docs         Pin all legal documents to IPFS via Pinata"
 	@echo "  make clean            Remove build artifacts"
 	@echo "  ─────────────────────────────────────────────────────────"
 	@echo ""
@@ -71,6 +72,11 @@ seed-testnet:
 
 verify-testnet:
 	$(HH) run scripts/verify.ts --network arbitrumSepolia
+
+## ─── IPFS ────────────────────────────────────────────────────────────────────
+
+pin-docs:
+	node scripts/pin-docs.mjs
 
 ## ─── Maintenance ─────────────────────────────────────────────────────────────
 

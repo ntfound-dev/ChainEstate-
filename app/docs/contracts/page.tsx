@@ -321,7 +321,7 @@ export default function ContractsPage() {
 
         <div className="px-6 py-5 space-y-5">
           <p className="text-sm font-body leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            All legal documents are pinned to IPFS via Pinata and accessible via <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>ipfs.io</code> and <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>cloudflare-ipfs.com</code> gateways.
+            All legal documents are pinned to IPFS via Pinata and accessible via <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>ipfs.io</code> and <code className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>gateway.pinata.cloud</code> gateways.
             CIDs are immutable — content is guaranteed identical across all gateways.
           </p>
 

@@ -505,13 +505,13 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                               </a>
                               <span style={{ color: 'var(--border-visible)' }}>·</span>
                               <a
-                                href={`https://cloudflare-ipfs.com/ipfs/${doc.cid}`}
+                                href={`https://gateway.pinata.cloud/ipfs/${doc.cid}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-[10px] font-body transition-opacity hover:opacity-70"
                                 style={{ color: 'var(--text-ghost)' }}
                               >
-                                CF Gateway
+                                Pinata
                               </a>
                             </div>
                           </>
