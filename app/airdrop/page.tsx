@@ -18,8 +18,8 @@ const SOCIALS = {
 }
 
 const TOTAL_AIRDROP = '250,000,000'
-const SNAPSHOT_DATE = 'May 20, 2026'
-const CLAIM_DATE    = 'Jun 01, 2026'
+const SNAPSHOT_DATE = 'TBA'
+const CLAIM_DATE    = 'TBA'
 const CEST_PRICE    = TOKEN_PRICES.CEST
 
 interface Task {
@@ -408,7 +408,8 @@ export default function AirdropPage() {
                 ))}
               </div>
               <p className="mt-3 text-[10px] font-body leading-snug" style={{ color: 'var(--text-ghost)' }}>
-                Points are recorded on-chain by the operator after verifying your transactions.
+                Points are stored on-chain as encrypted <span style={{ color: 'var(--nox-green)' }}>euint256</span> via
+                iExec Nox — amounts are confidential. Only you can decrypt your score via the Nox JS SDK.
                 Snapshot on {SNAPSHOT_DATE}.
               </p>
             </motion.div>

@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+// ── iExec Nox ─────────────────────────────────────────────────────────────────
+import {
+    Nox,
+    euint256,
+    externalEuint256
+} from "@iexec-nox/nox-protocol-contracts/contracts/sdk/Nox.sol";
+
+// ── OpenZeppelin ──────────────────────────────────────────────────────────────
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
@@ -47,6 +55,13 @@ contract CESTToken is ERC20, ERC20Votes, ERC20Permit, Ownable, ICESTToken {
     // ============ Storage ============
 
     mapping(address => StakeInfo) public stakes;
+
+    /// @dev Encrypted stake amount per wallet (iExec Nox euint256).
+    ///      Set by the staker via encryptMyStake() after calling stake().
+    ///      Allows the privacy layer to verify stake amount without revealing it on-chain.
+    mapping(address => euint256) private _encryptedStake;
+
+    event StakeEncrypted(address indexed user);
 
     // ============ Constructor ============
 
@@ -122,6 +137,42 @@ contract CESTToken is ERC20, ERC20Votes, ERC20Permit, Ownable, ICESTToken {
         _transfer(address(this), msg.sender, amount);
 
         emit Unstaked(msg.sender, amount);
+    }
+
+    // ============ Nox — Confidential Stake Record ============
+
+    /**
+     * @notice Store an encrypted record of your staked CEST amount using iExec Nox.
+     *         Call this after stake() to add a confidential layer on top of your
+     *         on-chain stake. The encrypted value is verified by the Intel TDX TEE
+     *         and stored as euint256 — not readable by any on-chain observer.
+     *
+     *  Usage (same pattern as PropertyToken.purchaseTokens):
+     *    const { handle, handleProof } = await encryptInput(stakedAmount, noxClient)
+     *    await cestToken.encryptMyStake(handle, handleProof)
+     *
+     * @param handle      externalEuint256 produced by the iExec Nox iApp in TEE
+     * @param handleProof Input proof from Handle Gateway validating the encrypted value
+     */
+    function encryptMyStake(
+        externalEuint256 handle,
+        bytes calldata handleProof
+    ) external {
+        require(stakes[msg.sender].amount > 0, "CESTToken: nothing staked");
+
+        euint256 encAmount = Nox.fromExternal(handle, handleProof);
+        Nox.allowThis(encAmount);
+        Nox.allow(encAmount, msg.sender);
+
+        _encryptedStake[msg.sender] = encAmount;
+
+        emit StakeEncrypted(msg.sender);
+    }
+
+    /// @notice Returns the Nox encrypted stake handle for a wallet.
+    ///         Only readable by the holder (via Nox.allow) or this contract.
+    function encryptedStake(address holder) external view returns (euint256) {
+        return _encryptedStake[holder];
     }
 
     // ============ View Functions ============
