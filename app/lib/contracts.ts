@@ -17,7 +17,7 @@ export const ADDRESSES = {
   rentDistributor:         '0x80E0e5f6488FA2726c042a204344281974f72609' as const,
   cestToken:               '0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D' as const,
   confidentialGovernance:  '0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14' as const,
-  tierNFT:                 '0x0000000000000000000000000000000000000000' as const, // deploy: make deploy-testnet
+  tierNFT:                 '0xda3072dd0B56e81B0361c760eCF512F1B85FFFfc' as const,
 }
 
 export const ERC20_ABI = [
@@ -262,18 +262,12 @@ export const TIER_NFT_ABI = [
     outputs: [{ name: '', type: 'uint256' }],
   },
   {
-    name: 'effectivePoints',
+    // encrypted euint256 — only readable by holder via Nox JS SDK, not plain UI
+    name: 'encryptedPoints',
     type: 'function' as const,
     stateMutability: 'view' as const,
     inputs: [{ name: 'holder', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
-  },
-  {
-    name: 'testnetPoints',
-    type: 'function' as const,
-    stateMutability: 'view' as const,
-    inputs: [{ name: '', type: 'address' }],
-    outputs: [{ name: '', type: 'uint256' }],
+    outputs: [{ name: '', type: 'uint256' }], // euint256 ABI-encodes as uint256 handle
   },
   {
     name: 'holderToken',
