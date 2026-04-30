@@ -150,6 +150,75 @@ export default function FaucetPage() {
           </span>
         </motion.div>
 
+        {/* ── Section 0: Get ETH for gas ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="mb-10 rounded-xl overflow-hidden"
+          style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}
+        >
+          <div className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: '1px solid rgba(212,175,55,0.15)', background: 'rgba(212,175,55,0.06)' }}>
+            <span className="text-base">⛽</span>
+            <p className="text-sm font-display" style={{ color: 'var(--gold-primary)' }}>Need ETH for gas? Do this first</p>
+          </div>
+
+          <div className="p-5 space-y-3">
+            <p className="text-xs font-body leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Every transaction on Arbitrum Sepolia requires a small amount of ETH for gas. Get Sepolia ETH first, then bridge it over — takes about 5 minutes total.
+            </p>
+
+            {/* Step 1 */}
+            <a
+              href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-4 rounded-xl p-4 transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(212,175,55,0.15)' }}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-display" style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.3)' }}>
+                1
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>Get Sepolia ETH</p>
+                <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>
+                  Google Cloud Web3 Faucet — free Sepolia ETH, no login needed
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-body" style={{ color: 'var(--gold-primary)' }}>↗</span>
+            </a>
+
+            {/* Arrow */}
+            <div className="flex items-center justify-center py-0.5">
+              <span className="text-sm" style={{ color: 'var(--text-ghost)' }}>↓</span>
+            </div>
+
+            {/* Step 2 */}
+            <a
+              href="https://portal.arbitrum.io/bridge?destinationChain=arbitrum-sepolia&sanitized=true&sourceChain=sepolia&tab=tx_history"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-4 rounded-xl p-4 transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(212,175,55,0.15)' }}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-display" style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.3)' }}>
+                2
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>Bridge to Arbitrum Sepolia</p>
+                <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>
+                  Arbitrum Bridge — Sepolia → Arbitrum Sepolia, official portal
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-body" style={{ color: 'var(--gold-primary)' }}>↗</span>
+            </a>
+
+            <p className="text-[10px] font-body text-center pt-1" style={{ color: 'var(--text-ghost)' }}>
+              Once you have ETH on Arbitrum Sepolia, come back and claim USDT + CEST below ↓
+            </p>
+          </div>
+        </motion.div>
+
         {/* ── Section 1: Our mock tokens ── */}
         <motion.div
           initial={{ opacity: 0 }}
