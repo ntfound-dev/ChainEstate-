@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useDragControls } from 'framer-motion'
 
 type ChatRole = 'assistant' | 'user'
 
@@ -13,9 +13,25 @@ interface ChatMessage {
 
 const QUICK_PROMPTS = [
   'How does iExec Nox keep balances private?',
-  'What happens when I buy property tokens?',
-  'How does monthly rent distribution work?',
+  'How does buying property tokens work?',
+  'How is rent distributed privately?',
 ]
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-1 py-0.5">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ background: 'var(--nox-green)' }}
+          animate={{ opacity: [0.25, 1, 0.25], y: [0, -3, 0] }}
+          transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function AIChatbot() {
   const [open, setOpen] = useState(false)
@@ -26,10 +42,12 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content:
-        'Ask me about ChainEstate, iExec Nox privacy flow, property tokens, or rent distribution. I answer with ChainGPT using project context.',
+      content: 'Ask me about ChainEstate — iExec Nox privacy, property tokens, rent distribution, or anything else. Powered by ChainGPT with full project context.',
     },
   ])
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const dragControls = useDragControls()
 
   useEffect(() => {
     const storageKey = 'chainestate-chaingpt-session'
@@ -39,203 +57,355 @@ export function AIChatbot() {
     setSessionId(nextId)
   }, [])
 
-  const canSend = input.trim().length > 0 && !loading && sessionId
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
-  const helperLabel = useMemo(() => {
-    if (loading) return 'ChainGPT is thinking...'
-    return 'Powered by ChainGPT + ChainEstate context'
-  }, [loading])
+  const canSend = input.trim().length > 0 && !loading && !!sessionId
 
   const submitQuestion = async (question: string) => {
     if (!question.trim() || !sessionId) return
 
-    const userMessage: ChatMessage = {
-      id: `${Date.now()}-user`,
-      role: 'user',
-      content: question.trim(),
-    }
-
-    setMessages((current) => [...current, userMessage])
+    setMessages((prev) => [...prev, { id: `${Date.now()}-user`, role: 'user', content: question.trim() }])
     setInput('')
     setLoading(true)
 
     try {
       const response = await fetch('/api/chatbot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: question.trim(),
-          sdkUniqueId: sessionId,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question.trim(), sdkUniqueId: sessionId }),
       })
-
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(typeof data?.error === 'string' ? data.error : 'Chatbot request failed.')
-      }
-
-      setMessages((current) => [
-        ...current,
-        {
-          id: `${Date.now()}-assistant`,
-          role: 'assistant',
-          content: typeof data?.answer === 'string' ? data.answer : 'ChainGPT returned an empty answer.',
-        },
+      if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Request failed.')
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-assistant`, role: 'assistant', content: typeof data?.answer === 'string' ? data.answer : 'ChainGPT returned an empty response.' },
       ])
     } catch (error) {
-      setMessages((current) => [
-        ...current,
-        {
-          id: `${Date.now()}-error`,
-          role: 'assistant',
-          content:
-            error instanceof Error
-              ? `Chatbot unavailable: ${error.message}`
-              : 'Chatbot unavailable right now.',
-        },
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-error`, role: 'assistant', content: error instanceof Error ? `Error: ${error.message}` : 'Chatbot unavailable right now.' },
       ])
     } finally {
       setLoading(false)
     }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (canSend) submitQuestion(input)
+    }
+  }
+
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[90] flex max-w-[calc(100vw-2rem)] flex-col items-end gap-3">
+    <motion.div
+      drag
+      dragControls={dragControls}
+      dragMomentum={false}
+      dragElastic={0}
+      className="pointer-events-none fixed bottom-5 right-5 z-[90] flex max-w-[calc(100vw-2.5rem)] flex-col items-end gap-4"
+      style={{ touchAction: 'none' }}
+    >
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.98 }}
-            className="pointer-events-auto w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-[28px] border"
+            exit={{ opacity: 0, y: 24, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 30 }}
+            className="pointer-events-auto relative w-[min(440px,calc(100vw-2.5rem))] overflow-hidden rounded-3xl"
             style={{
-              borderColor: 'rgba(201,168,76,0.18)',
-              background: 'rgba(8,8,16,0.96)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 28px 90px rgba(0,0,0,0.45)',
+              background: 'rgba(6,6,14,0.97)',
+              backdropFilter: 'blur(28px)',
+              boxShadow: '0 32px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            <div className="border-b px-5 py-4" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-body uppercase tracking-[0.28em]" style={{ color: 'var(--nox-green)' }}>
-                    [ AI Copilot ]
-                  </p>
-                  <h2 className="mt-2 font-display text-xl" style={{ color: 'var(--text-primary)' }}>
-                    ChainGPT Assistant
-                  </h2>
-                  <p className="mt-2 text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
-                    {helperLabel}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="rounded-full px-3 py-2 text-[10px] font-body uppercase tracking-widest"
-                  style={{ border: '1px solid var(--border-visible)', color: 'var(--text-secondary)' }}
-                  aria-label="Close chatbot"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+            {/* Animated top glow line */}
+            <div
+              className="absolute inset-x-0 top-0 h-px"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(0,229,160,0.6), rgba(201,168,76,0.6), transparent)' }}
+            />
 
-            <div className="max-h-[52vh] space-y-3 overflow-y-auto px-4 py-4">
-              {messages.map((message) => (
+            {/* Drag handle bar */}
+            <div
+              className="mx-auto mt-2.5 h-1 w-10 rounded-full cursor-grab active:cursor-grabbing"
+              style={{ background: 'rgba(255,255,255,0.1)' }}
+              onPointerDown={(e) => dragControls.start(e)}
+            />
+
+            {/* Header */}
+            <div className="relative flex items-center justify-between gap-4 px-5 py-3">
+              <div className="flex items-center gap-3">
+                {/* AI orb icon */}
                 <div
-                  key={message.id}
-                  className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm font-body leading-relaxed ${
-                    message.role === 'user' ? 'ml-auto' : ''
-                  }`}
+                  className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl text-xs font-bold"
                   style={{
-                    background:
-                      message.role === 'user'
-                        ? 'rgba(201,168,76,0.12)'
-                        : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${
-                      message.role === 'user'
-                        ? 'rgba(201,168,76,0.18)'
-                        : 'rgba(255,255,255,0.08)'
-                    }`,
-                    color:
-                      message.role === 'user'
-                        ? 'var(--text-primary)'
-                        : 'var(--text-secondary)',
+                    background: 'linear-gradient(135deg, rgba(0,229,160,0.15), rgba(201,168,76,0.08))',
+                    border: '1px solid rgba(0,229,160,0.25)',
+                    color: 'var(--nox-green)',
+                    fontFamily: 'var(--font-body)',
+                    letterSpacing: '0.05em',
                   }}
                 >
-                  {message.content}
+                  <span
+                    className="absolute inset-0 rounded-2xl"
+                    style={{
+                      background: 'radial-gradient(circle at 35% 35%, rgba(0,229,160,0.18), transparent 60%)',
+                    }}
+                  />
+                  AI
                 </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="text-base font-display"
+                      style={{ color: 'var(--text-primary)', letterSpacing: '0.02em' }}
+                    >
+                      ChainGPT
+                    </p>
+                    {/* Live indicator */}
+                    <span className="flex items-center gap-1">
+                      <motion.span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: 'var(--nox-green)', boxShadow: '0 0 6px var(--nox-green)' }}
+                        animate={{ opacity: [1, 0.3, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+                    </span>
+                  </div>
+                  <p
+                    className="text-[10px] uppercase tracking-[0.22em]"
+                    style={{ color: loading ? 'var(--nox-green)' : 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+                  >
+                    {loading ? 'Thinking...' : 'AI Copilot · ChainEstate'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors"
+                style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}
+                aria-label="Close"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.12), transparent)' }} />
+
+            {/* Messages */}
+            <div className="max-h-[48vh] min-h-[180px] overflow-y-auto px-4 py-4 space-y-3">
+              <AnimatePresence initial={false}>
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                  >
+                    {/* Avatar dot */}
+                    <div
+                      className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+                      style={
+                        msg.role === 'user'
+                          ? { background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold-primary)', fontFamily: 'var(--font-body)' }
+                          : { background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)', fontFamily: 'var(--font-body)' }
+                      }
+                    >
+                      {msg.role === 'user' ? 'U' : 'AI'}
+                    </div>
+
+                    <div
+                      className="max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed"
+                      style={
+                        msg.role === 'user'
+                          ? {
+                              background: 'rgba(201,168,76,0.09)',
+                              border: '1px solid rgba(201,168,76,0.16)',
+                              color: 'var(--text-primary)',
+                              fontFamily: 'var(--font-body)',
+                            }
+                          : {
+                              background: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.07)',
+                              color: 'var(--text-secondary)',
+                              fontFamily: 'var(--font-body)',
+                            }
+                      }
+                    >
+                      {msg.content}
+                    </div>
+                  </motion.div>
+                ))}
+
+                {loading && (
+                  <motion.div
+                    key="typing"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-start gap-2.5"
+                  >
+                    <div
+                      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+                      style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)', fontFamily: 'var(--font-body)' }}
+                    >
+                      AI
+                    </div>
+                    <div
+                      className="rounded-2xl px-4 py-3"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                    >
+                      <TypingDots />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.1), transparent)' }} />
+
+            {/* Quick prompts */}
+            <div className="flex flex-wrap gap-1.5 px-4 pt-3 pb-0">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => { if (!loading && sessionId) submitQuestion(prompt) }}
+                  disabled={loading || !sessionId}
+                  className="rounded-full px-3 py-1 text-[10px] transition-all"
+                  style={{
+                    border: '1px solid rgba(201,168,76,0.15)',
+                    color: 'var(--text-secondary)',
+                    fontFamily: 'var(--font-body)',
+                    letterSpacing: '0.04em',
+                    opacity: loading ? 0.4 : 1,
+                    background: 'rgba(201,168,76,0.04)',
+                  }}
+                >
+                  {prompt}
+                </button>
               ))}
             </div>
 
-            <div className="border-t px-4 py-4" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {QUICK_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    onClick={() => submitQuestion(prompt)}
-                    disabled={loading || !sessionId}
-                    className="rounded-full px-3 py-1.5 text-[10px] font-body uppercase tracking-widest"
-                    style={{
-                      border: '1px solid var(--border-visible)',
-                      color: 'var(--text-secondary)',
-                      opacity: loading ? 0.55 : 1,
-                    }}
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-end gap-3">
-                <textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Ask about privacy, tokenization, or rent flow..."
-                  rows={3}
-                  className="terminal-input min-h-[92px] flex-1 rounded-2xl px-4 py-3 text-sm font-body"
-                />
-                <button
-                  onClick={() => submitQuestion(input)}
-                  disabled={!canSend}
-                  className="rounded-2xl px-4 py-3 text-sm btn-gold disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Send
-                </button>
-              </div>
+            {/* Input */}
+            <div className="flex items-end gap-2.5 px-4 pt-3 pb-4">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask anything… (Enter to send)"
+                rows={2}
+                className="flex-1 resize-none rounded-2xl px-4 py-3 text-[13px] outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-body)',
+                  lineHeight: '1.55',
+                  minHeight: '72px',
+                  caretColor: 'var(--nox-green)',
+                }}
+              />
+              <button
+                onClick={() => submitQuestion(input)}
+                disabled={!canSend}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all disabled:cursor-not-allowed disabled:opacity-30"
+                style={{
+                  background: canSend
+                    ? 'linear-gradient(135deg, var(--gold-primary), var(--gold-bright))'
+                    : 'rgba(201,168,76,0.12)',
+                  boxShadow: canSend ? '0 0 20px rgba(201,168,76,0.3)' : 'none',
+                  color: '#0a0a12',
+                }}
+                aria-label="Send"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="currentColor"/>
+                </svg>
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <button
-        onClick={() => setOpen((current) => !current)}
-        className="pointer-events-auto flex items-center gap-3 rounded-full px-4 py-3"
+      {/* FAB */}
+      <motion.button
+        onPointerDown={(e) => dragControls.start(e)}
+        onClick={() => setOpen((v) => !v)}
+        className="pointer-events-auto relative flex items-center gap-3 overflow-hidden rounded-full pl-3 pr-4 py-2.5"
         style={{
-          background: 'rgba(201,168,76,0.14)',
-          border: '1px solid rgba(201,168,76,0.22)',
+          background: open
+            ? 'rgba(201,168,76,0.1)'
+            : 'linear-gradient(135deg, rgba(10,10,20,0.95), rgba(16,16,30,0.95))',
+          border: '1px solid rgba(201,168,76,0.25)',
+          boxShadow: open
+            ? '0 0 0 1px rgba(201,168,76,0.35)'
+            : '0 8px 32px rgba(0,0,0,0.4), 0 0 24px rgba(201,168,76,0.12)',
+          backdropFilter: 'blur(16px)',
           color: 'var(--text-primary)',
-          boxShadow: '0 0 24px rgba(201,168,76,0.14)',
         }}
-        aria-label={open ? 'Hide ChainGPT assistant' : 'Show ChainGPT assistant'}
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        aria-label={open ? 'Close AI Copilot' : 'Open AI Copilot'}
       >
+        {/* Shimmer line */}
         <span
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm"
-          style={{ background: 'rgba(0,229,160,0.12)', color: 'var(--nox-green)' }}
-        >
-          AI
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(0,229,160,0.4), transparent)' }}
+        />
+
+        {/* Pulsing orb */}
+        <span className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+          {!open && (
+            <motion.span
+              className="absolute inset-0 rounded-full"
+              style={{ background: 'rgba(0,229,160,0.15)' }}
+              animate={{ scale: [1, 1.55, 1], opacity: [0.5, 0, 0.5] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+            />
+          )}
+          <span
+            className="relative flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0,229,160,0.18), rgba(201,168,76,0.1))',
+              border: '1px solid rgba(0,229,160,0.3)',
+              color: 'var(--nox-green)',
+              fontFamily: 'var(--font-body)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {open ? (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            ) : 'AI'}
+          </span>
         </span>
+
+        {/* Labels */}
         <div className="text-left">
-          <p className="text-[10px] font-body uppercase tracking-[0.28em]" style={{ color: 'var(--nox-green)' }}>
+          <p
+            className="text-[10px] uppercase tracking-[0.24em]"
+            style={{ color: 'var(--nox-green)', fontFamily: 'var(--font-body)' }}
+          >
             ChainGPT
           </p>
-          <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>
-            Ask the copilot
+          <p className="text-sm" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
+            {open ? 'Close' : 'Ask the copilot'}
           </p>
         </div>
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   )
 }
