@@ -190,8 +190,72 @@ const buyRx = await waitForReceipt(buyTx as string)
 if (buyRx.status === '0x0') throw new Error('executeBuy reverted')`,
   },
   {
+    id: 'transfer',
+    title: '7. Direct Transfer — grantOperator to Recipient',
+    color: 'var(--nox-green)',
+    dim: 'rgba(0,229,160,0.04)',
+    border: 'rgba(0,229,160,0.2)',
+    lang: 'typescript',
+    desc: 'Transfer tokens directly to another wallet using the operator pattern. Grant the recipient as a temporary operator, then they call transferFrom. No listing required — this is a private wallet-to-wallet transfer.',
+    code: `import { encodeFunctionData } from 'viem'
+import { PROPERTY_TOKEN_ABI } from '@/app/lib/contracts'
+import { PROPERTIES } from '@/app/lib/propertiesData'
+
+const eth = window.ethereum
+const address = '0xYOUR_WALLET'
+
+// Resolve property contract address
+const property = PROPERTIES.find(p => p.id === 'pearl-dxb-001')
+const propertyTokenAddress = property.contractAddress
+
+// Step 1 — Grant recipient as operator (7-day window)
+const expiry = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+const grantData = encodeFunctionData({
+  abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator',
+  args: [recipientAddress as \`0x\${string}\`, expiry],
+})
+const grantTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: propertyTokenAddress, data: grantData, gasPrice }] })
+
+// The recipient wallet can now call confidentialTransferFrom for up to 7 days.
+// Transfer amounts are encrypted — no observer knows how much moved.
+// Revoke early by re-calling grantOperator with expiry = 0.`,
+  },
+  {
+    id: 'governance',
+    title: '8. Governance — castVote',
+    color: 'var(--gold-primary)',
+    dim: 'rgba(212,175,55,0.06)',
+    border: 'rgba(212,175,55,0.2)',
+    lang: 'typescript',
+    desc: 'Cast a vote on a ConfidentialGovernance proposal. Voting is gated by PropertyToken holder status (not CEST). Options: 0 = For, 1 = Against, 2 = Abstain.',
+    code: `import { encodeFunctionData } from 'viem'
+import { ADDRESSES, GOVERNANCE_ABI } from '@/app/lib/contracts'
+
+const eth = window.ethereum
+const address = '0xYOUR_WALLET'
+
+// proposalId from ConfidentialGovernance (uint256)
+// option: 0 = For, 1 = Against, 2 = Abstain
+const voteData = encodeFunctionData({
+  abi: GOVERNANCE_ABI, functionName: 'castVote',
+  args: [BigInt(proposalId), 0],  // 0 = Vote For
+})
+
+const voteTx = await eth.request({ method: 'eth_sendTransaction',
+  params: [{ from: address, to: ADDRESSES.confidentialGovernance, data: voteData, gasPrice }] })
+const voteRx = await waitForReceipt(voteTx as string)
+if (voteRx.status === '0x0') throw new Error('castVote reverted — not a holder or proposal closed')
+
+// IMPORTANT:
+// - Voting is by PropertyToken holder status (1 holder = 1 vote)
+// - CEST tokens do NOT determine voting power in ConfidentialGovernance
+// - CEST ERC20Votes is reserved for future DAO delegation (Phase 2)
+// - Proposals are created via createProposal(propertyId, proposalType, description)`,
+  },
+  {
     id: 'read-listing',
-    title: '7. Read a Listing',
+    title: '9. Read a Listing',
     color: 'var(--text-secondary)',
     dim: 'rgba(255,255,255,0.02)',
     border: 'var(--border-visible)',
@@ -245,6 +309,15 @@ const ABI_TABLES = [
       { fn: 'executeBuy',    sig: '(uint256 listingId)',                                                                       returns: 'void',             access: 'public', note: 'approve USDT first' },
       { fn: 'cancelListing', sig: '(uint256 listingId)',                                                                       returns: 'void',             access: 'seller', note: 'Any time while active' },
       { fn: 'listings',      sig: '(uint256)',                                                                                 returns: 'Listing',          access: 'view',   note: 'Full listing struct' },
+    ],
+  },
+  {
+    name: 'GOVERNANCE_ABI',
+    color: 'var(--gold-primary)',
+    rows: [
+      { fn: 'castVote',         sig: '(uint256 proposalId, uint8 option)',                              returns: 'void',    access: 'holder',  note: '0=For 1=Against 2=Abstain — holder-gated' },
+      { fn: 'createProposal',   sig: '(uint256 propertyId, uint8 proposalType, string description)',    returns: 'uint256', access: 'holder',  note: 'Returns proposalId' },
+      { fn: 'finalizeProposal', sig: '(uint256 proposalId)',                                             returns: 'void',   access: 'public',  note: 'Tallies votes after deadline' },
     ],
   },
   {

@@ -5,7 +5,7 @@ const QUICK_LINKS = [
   { href: '/docs/business-model',   icon: '💼', title: 'Business Model',     desc: 'How ChainEstate generates revenue and sustains the ecosystem.' },
   { href: '/docs/roadmap',          icon: '🗺️', title: 'Roadmap',            desc: 'Milestones from testnet launch to global institutional adoption.' },
   { href: '/docs/contracts',        icon: '📜', title: 'Smart Contracts',    desc: 'Architecture, function signatures, and integration patterns.' },
-  { href: '/docs/sdk',              icon: '⚡', title: 'SDK & Integration',  desc: 'iExec Nox handle client, buy/sell flows, ABI reference.' },
+  { href: '/docs/sdk',              icon: '⚡', title: 'SDK & Integration',  desc: 'iExec Nox handle client, buy/sell flows, direct transfer, governance voting, ABI reference.' },
 ]
 
 const STATS = [
