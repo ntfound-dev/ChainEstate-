@@ -690,9 +690,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                     <span className="text-xs font-body" style={{ color: 'var(--text-ghost)' }}>or</span>
                     <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
                   </div>
-                  <button className="w-full py-2.5 px-4 rounded text-sm font-body btn-ghost">
-                    Buy with Fiat →
-                  </button>
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded text-sm font-body" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-ghost)', cursor: 'default' }}>
+                    <span>Buy with Fiat</span>
+                    <span className="text-[10px] uppercase tracking-widest rounded px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>Coming Soon</span>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -716,9 +717,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                             ? '⏳ Purchasing...'
                             : `🔒 Encrypt & Buy with ${currency}`}
                   </button>
-                  <button className="w-full py-2.5 px-4 rounded text-sm font-body btn-ghost">
-                    Buy with Fiat →
-                  </button>
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded text-sm font-body" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-ghost)', cursor: 'default' }}>
+                    <span>Buy with Fiat</span>
+                    <span className="text-[10px] uppercase tracking-widest rounded px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>Coming Soon</span>
+                  </div>
                 </div>
               )}
 
