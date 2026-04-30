@@ -107,6 +107,11 @@ export default function MarketPage() {
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'
     const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) })
 
+    if (selected.ticker === 'CEST') {
+      showToast('CEST trades on DEX', 'CEST is a governance token — buy it via the DEX link in the listings panel.', 'info')
+      return
+    }
+
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
       showToast('Property not found', 'This listing is not mapped to a deployed contract.', 'error')
