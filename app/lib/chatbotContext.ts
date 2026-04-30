@@ -265,16 +265,21 @@ ChainEstate targets high-yield residential: Dubai (6.8%), Singapore (7.2%), Barc
 **Phase 0 — Q1 2026 (CURRENT)**: Hackathon + Testnet
 - All 5 property contracts live on Arbitrum Sepolia ✅
 - Full iExec TEE buy flow working ✅
+- Multi-currency payment: USDT, USDC, CEST ✅
 - Secondary market (list + buy) working ✅
+- Legal documents pinned to IPFS (all 5 properties) ✅
+- Dashboard: on-chain holder verification + governance voting ✅
 - Genesis airdrop + faucet live ✅
-- ChainGPT AI assistant ✅
+- ChainGPT AI assistant (all languages) ✅
 
 **Phase 1 — Q2 2026**: Mainnet Launch
 - Deploy to Arbitrum One mainnet
-- Third-party security audit
+- Third-party security audit (Trail of Bits / Certik)
 - List first 3 real-world properties with legal SPV
 - CEST airdrop claim opens June 1, 2026
 - Uniswap V3 CEST/USDT liquidity pool
+- Fiat on-ramp: buy with credit card (Stripe / Moonpay)
+- Native USDC mainnet integration (Circle CCTP)
 
 **Phase 2 — Q3 2026**: Scale
 - 20+ properties across 10+ cities
