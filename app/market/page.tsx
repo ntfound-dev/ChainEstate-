@@ -94,6 +94,12 @@ export default function MarketPage() {
   const handleExecute = async () => {
     if (!amount || parseFloat(amount) <= 0 || !selected) return
 
+    // CEST check must be synchronous (before any await) so browser doesn't block popup
+    if (selected.ticker === 'CEST') {
+      window.open(`https://app.uniswap.org/swap?outputCurrency=${ADDRESSES.cestToken}&chain=arbitrum_sepolia`, '_blank')
+      return
+    }
+
     const eth = window.ethereum
     if (!eth) { showToast('No wallet', 'Install MetaMask to continue.', 'error'); return }
     if (!address) { showToast('Wallet not connected', 'Connect your wallet before trading.', 'error'); return }
@@ -106,11 +112,6 @@ export default function MarketPage() {
     // Use env-configured RPC for reads — MetaMask RPC can be stale/misconfigured
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'
     const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) })
-
-    if (selected.ticker === 'CEST') {
-      window.open(`https://app.uniswap.org/swap?outputCurrency=${ADDRESSES.cestToken}&chain=arbitrum_sepolia`, '_blank')
-      return
-    }
 
     const property = PROPERTIES.find(p => p.ticker === selected.ticker)
     if (!property) {
