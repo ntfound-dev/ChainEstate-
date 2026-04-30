@@ -17,6 +17,7 @@ export const ADDRESSES = {
   rentDistributor:         '0x80E0e5f6488FA2726c042a204344281974f72609' as const,
   cestToken:               '0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D' as const,
   confidentialGovernance:  '0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14' as const,
+  tierNFT:                 '0x0000000000000000000000000000000000000000' as const, // deploy: make deploy-testnet
 }
 
 export const ERC20_ABI = [
@@ -178,5 +179,114 @@ export const GOVERNANCE_ABI = [
     stateMutability: 'nonpayable' as const,
     inputs: [{ name: 'proposalId', type: 'uint256' }],
     outputs: [],
+  },
+] as const
+
+// Tier thresholds and mint costs (must mirror TierNFT.sol constants)
+export const TIER_THRESHOLDS = {
+  BRONZE:   1_000,
+  SILVER:   10_000,
+  GOLD:     50_000,
+  PLATINUM: 200_000,
+} as const
+
+export const TIER_MINT_COSTS = {
+  BRONZE:   500,
+  SILVER:   2_000,
+  GOLD:     8_000,
+  PLATINUM: 25_000,
+} as const
+
+export const TIER_BENEFITS = {
+  BRONZE:   { discount: 5,  multiplierBps: 110, label: 'Bronze',   emoji: '🥉' },
+  SILVER:   { discount: 10, multiplierBps: 125, label: 'Silver',   emoji: '🥈' },
+  GOLD:     { discount: 15, multiplierBps: 150, label: 'Gold',     emoji: '🥇' },
+  PLATINUM: { discount: 20, multiplierBps: 200, label: 'Platinum', emoji: '💎' },
+} as const
+
+export const TIER_NFT_ABI = [
+  {
+    name: 'mint',
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: 'upgrade',
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: 'getTier',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'uint8' }], // Tier enum: 0=None 1=Bronze 2=Silver 3=Gold 4=Platinum
+  },
+  {
+    name: 'hasBadge',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'badgeTier',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+  {
+    name: 'airdropMultiplierBps',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'uint16' }],
+  },
+  {
+    name: 'feeDiscount',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+  {
+    name: 'mintCostFor',
+    type: 'function' as const,
+    stateMutability: 'pure' as const,
+    inputs: [{ name: 'tier', type: 'uint8' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'effectivePoints',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: 'holder', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'testnetPoints',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'holderToken',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'totalCestToTreasury',
+    type: 'function' as const,
+    stateMutability: 'view' as const,
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
   },
 ] as const

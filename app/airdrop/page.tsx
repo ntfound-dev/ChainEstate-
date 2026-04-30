@@ -5,7 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { WalletButton } from '../components/web3/WalletButton'
 import { useToast } from '../components/ui/Toast'
-import { TOKEN_PRICES, CEST_MARKET_CAP } from '../lib/contracts'
+import {
+  TOKEN_PRICES, CEST_MARKET_CAP,
+  TIER_BENEFITS, TIER_THRESHOLDS, TIER_MINT_COSTS,
+} from '../lib/contracts'
 
 // Official ChainEstate social handles
 const SOCIALS = {
@@ -65,9 +68,27 @@ const TASKS: Task[] = [
 
 const TOTAL_POINTS = TASKS.reduce((s, t) => s + t.points, 0)
 
-function pointsToCest(pts: number): number {
-  // Linear: full 4000 pts → 5000 CEST; scale accordingly
-  return Math.round((pts / TOTAL_POINTS) * 5000)
+// On-chain interaction bonus points (earned by using the protocol during testnet)
+const INTERACTION_POINTS = [
+  { action: 'Purchase property tokens',  pts: 2000 },
+  { action: 'Execute secondary market buy', pts: 1500 },
+  { action: 'Cast governance vote',      pts:  800 },
+  { action: 'List on secondary market',  pts:  500 },
+  { action: 'Direct token transfer',     pts:  300 },
+]
+
+function tierFromCest(bal: number) {
+  if (bal >= TIER_THRESHOLDS.PLATINUM) return 'PLATINUM' as const
+  if (bal >= TIER_THRESHOLDS.GOLD)     return 'GOLD'     as const
+  if (bal >= TIER_THRESHOLDS.SILVER)   return 'SILVER'   as const
+  if (bal >= TIER_THRESHOLDS.BRONZE)   return 'BRONZE'   as const
+  return null
+}
+
+function pointsToCest(pts: number, multiplierBps = 100): number {
+  // Linear: full 4000 social pts → 5000 CEST base; then multiply by tier
+  const base = Math.round((pts / TOTAL_POINTS) * 5000)
+  return Math.round((base * multiplierBps) / 100)
 }
 
 const STORAGE_KEY = 'ce_airdrop_v1'
@@ -151,7 +172,21 @@ export default function AirdropPage() {
     (stored.verified['github']   ? 1000 : 0) +
     (stored.verified['telegram'] ? 1000 : 0)
 
-  const cest = pointsToCest(earnedPoints)
+  // Tier multiplier — derived from stored CEST balance (demo: read from localStorage)
+  // In production this reads from TierNFT.airdropMultiplierBps(address) on-chain
+  const [cestBal, setCestBal] = useState<number>(0)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ce_demo_cest_bal')
+      if (raw) setCestBal(Number(raw))
+    } catch { /* ignore */ }
+  }, [])
+
+  const tierKey       = tierFromCest(cestBal)
+  const tierBenefits  = tierKey ? TIER_BENEFITS[tierKey] : null
+  const multiplierBps = tierBenefits ? tierBenefits.multiplierBps : 100
+
+  const cest = pointsToCest(earnedPoints, multiplierBps)
   const tasksCompleted = [
     walletDone,
     !!stored.verified['twitter'],
@@ -233,7 +268,7 @@ export default function AirdropPage() {
           {/* ── Task list ── */}
           <div className="space-y-4">
             <p className="text-xs font-body uppercase tracking-widest mb-1" style={{ color: 'var(--text-ghost)' }}>
-              Tasks — {tasksCompleted}/{TASKS.length} complete
+              Social Tasks — {tasksCompleted}/{TASKS.length} complete
             </p>
 
             {TASKS.map((task, i) => {
@@ -342,6 +377,41 @@ export default function AirdropPage() {
                 </motion.div>
               )
             })}
+            {/* On-chain interaction points */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="rounded-xl p-5"
+              style={{ background: 'var(--bg-surface)', border: '1px solid rgba(0,229,160,0.2)' }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">⚡</span>
+                <div>
+                  <p className="font-display text-sm" style={{ color: 'var(--nox-green)' }}>
+                    On-Chain Interaction Points
+                  </p>
+                  <p className="text-xs font-body mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                    Earn bonus points by using ChainEstate on testnet. Multiplied by your tier badge.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {INTERACTION_POINTS.map(({ action, pts }) => (
+                  <div key={action} className="flex items-center justify-between text-xs font-body">
+                    <span style={{ color: 'var(--text-secondary)' }}>→ {action}</span>
+                    <span className="font-data" style={{ color: 'var(--nox-green)' }}>
+                      +{pts.toLocaleString()} pts
+                      {tierBenefits ? ` × ${tierBenefits.multiplierBps / 100}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] font-body leading-snug" style={{ color: 'var(--text-ghost)' }}>
+                Points are recorded on-chain by the operator after verifying your transactions.
+                Snapshot on {SNAPSHOT_DATE}.
+              </p>
+            </motion.div>
           </div>
 
           {/* ── Allocation sidebar ── */}
@@ -418,8 +488,41 @@ export default function AirdropPage() {
                 </p>
               </div>
 
+              {/* Tier multiplier row */}
+              <div
+                className="rounded-lg px-3 py-2.5 flex items-center justify-between"
+                style={{
+                  background: tierBenefits ? 'rgba(212,175,55,0.06)' : 'var(--bg-elevated)',
+                  border: `1px solid ${tierBenefits ? 'rgba(212,175,55,0.25)' : 'var(--border-subtle)'}`,
+                }}
+              >
+                <div>
+                  <p className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>
+                    Tier Multiplier
+                  </p>
+                  {tierBenefits ? (
+                    <p className="text-xs font-data font-semibold mt-0.5" style={{ color: 'var(--gold-primary)' }}>
+                      {tierBenefits.emoji} {tierBenefits.label} · {tierBenefits.multiplierBps / 100}×
+                    </p>
+                  ) : (
+                    <p className="text-xs font-data mt-0.5" style={{ color: 'var(--text-ghost)' }}>
+                      1× — mint a Tier Badge to boost
+                    </p>
+                  )}
+                </div>
+                {!tierBenefits && isConnected && (
+                  <a
+                    href="/faucet"
+                    className="text-[10px] font-body px-2 py-1 rounded transition-opacity hover:opacity-70"
+                    style={{ background: 'rgba(212,175,55,0.1)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.2)' }}
+                  >
+                    Get CEST
+                  </a>
+                )}
+              </div>
+
               {address && (
-                <p className="mt-3 text-center text-[10px] font-data truncate" style={{ color: 'var(--text-ghost)' }}>
+                <p className="mt-1 text-center text-[10px] font-data truncate" style={{ color: 'var(--text-ghost)' }}>
                   {address}
                 </p>
               )}
@@ -432,6 +535,30 @@ export default function AirdropPage() {
                 Claim opens {CLAIM_DATE}
               </button>
             </motion.div>
+
+            {/* Tier badge CTA */}
+            {tierBenefits && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-xl p-4"
+                style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)' }}
+              >
+                <p className="text-[10px] font-body uppercase tracking-widest mb-2" style={{ color: 'var(--text-ghost)' }}>
+                  Tier Badge NFT
+                </p>
+                <p className="text-xs font-body leading-snug mb-3" style={{ color: 'var(--text-secondary)' }}>
+                  Mint your {tierBenefits.emoji} {tierBenefits.label} badge to lock in
+                  the {tierBenefits.multiplierBps / 100}× airdrop multiplier and
+                  get a {tierBenefits.discount}% platform fee discount.
+                  Costs {TIER_MINT_COSTS[tierKey!].toLocaleString()} CEST (burned → treasury).
+                </p>
+                <div className="text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>
+                  Contract: TierNFT · deploying soon
+                </div>
+              </motion.div>
+            )}
 
             {/* Official links */}
             <motion.div

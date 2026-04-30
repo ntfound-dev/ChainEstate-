@@ -4,7 +4,10 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { useReadContract } from 'wagmi'
 import { DASHBOARD_NAV_ITEMS, type DashboardTab } from './types'
-import { TOKEN_PRICES, ADDRESSES, ERC20_ABI } from '@/app/lib/contracts'
+import {
+  TOKEN_PRICES, ADDRESSES, ERC20_ABI,
+  TIER_BENEFITS, TIER_THRESHOLDS, TIER_MINT_COSTS, TIER_NFT_ABI,
+} from '@/app/lib/contracts'
 
 export function DashboardShell({
   tab,
@@ -35,6 +38,30 @@ export function DashboardShell({
     query: { enabled: !!addr },
   })
 
+  const { data: hasBadgeRaw } = useReadContract({
+    address: ADDRESSES.tierNFT,
+    abi: TIER_NFT_ABI,
+    functionName: 'hasBadge',
+    args: addr ? [addr] : undefined,
+    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+  })
+
+  const { data: badgeTierRaw } = useReadContract({
+    address: ADDRESSES.tierNFT,
+    abi: TIER_NFT_ABI,
+    functionName: 'badgeTier',
+    args: addr ? [addr] : undefined,
+    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+  })
+
+  const { data: multiplierRaw } = useReadContract({
+    address: ADDRESSES.tierNFT,
+    abi: TIER_NFT_ABI,
+    functionName: 'airdropMultiplierBps',
+    args: addr ? [addr] : undefined,
+    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+  })
+
   // CEST has 18 decimals, USDT has 6
   const cestBalance = cestRaw ? Number(cestRaw) / 1e18 : null
   const usdtBalance = usdtRaw ? Number(usdtRaw) / 1e6 : null
@@ -42,13 +69,29 @@ export function DashboardShell({
   const cestDisplay = cestBalance !== null ? cestBalance.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'
   const usdtDisplay = usdtBalance !== null ? `$${usdtBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'
 
-  // CEST staking tier based on real balance
-  const cestTier = cestBalance === null ? null
-    : cestBalance >= 200_000 ? 'Platinum'
-    : cestBalance >= 50_000  ? 'Gold'
-    : cestBalance >= 10_000  ? 'Silver'
-    : cestBalance >= 1_000   ? 'Bronze'
-    : 'None'
+  // Tier from live CEST balance (for eligibility display)
+  const cestTierKey = cestBalance === null ? null
+    : cestBalance >= TIER_THRESHOLDS.PLATINUM ? 'PLATINUM'
+    : cestBalance >= TIER_THRESHOLDS.GOLD     ? 'GOLD'
+    : cestBalance >= TIER_THRESHOLDS.SILVER   ? 'SILVER'
+    : cestBalance >= TIER_THRESHOLDS.BRONZE   ? 'BRONZE'
+    : null
+
+  const cestTierBenefits = cestTierKey ? TIER_BENEFITS[cestTierKey] : null
+
+  // Minted badge info (from contract)
+  const hasBadge     = hasBadgeRaw ?? false
+  const mintedTierN  = (badgeTierRaw as number | undefined) ?? 0  // 0=None,1=Bronze…4=Platinum
+  const TIER_KEYS    = ['', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'] as const
+  const mintedKey    = mintedTierN > 0 ? TIER_KEYS[mintedTierN] : null
+  const mintedBenef  = mintedKey ? TIER_BENEFITS[mintedKey] : null
+  const multiplier   = multiplierRaw ? Number(multiplierRaw) / 100 : 1
+  const mintCost     = cestTierKey ? TIER_MINT_COSTS[cestTierKey] : null
+
+  // Can upgrade? live tier > minted tier
+  const liveTierN   = cestTierKey ? (['BRONZE','SILVER','GOLD','PLATINUM'].indexOf(cestTierKey) + 1) : 0
+  const canUpgrade  = hasBadge && liveTierN > mintedTierN
+  const canMint     = !hasBadge && !!cestTierKey
 
   return (
     <div className="min-h-screen pb-24 pt-20 md:pb-10">
@@ -124,7 +167,7 @@ export function DashboardShell({
             </p>
           </div>
 
-          {/* CEST balance */}
+          {/* CEST balance + Tier badge */}
           <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(0,229,160,0.18)', background: 'rgba(0,229,160,0.04)' }}>
             <p className="hidden text-[10px] font-body uppercase tracking-[0.24em] xl:block" style={{ color: 'var(--text-ghost)' }}>
               CEST Balance
@@ -134,18 +177,59 @@ export function DashboardShell({
             </p>
             {cestBalance !== null && (
               <p className="mt-0.5 text-center text-[10px] font-data xl:text-left" style={{ color: 'var(--text-secondary)' }}>
-                ≈ ${(cestBalance * TOKEN_PRICES.CEST).toFixed(2)}
+                ≈ ${(cestBalance * TOKEN_PRICES.CEST).toFixed(2)} · ${TOKEN_PRICES.CEST.toFixed(2)}/CEST
               </p>
             )}
-            {cestTier && (
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-center text-[10px] font-body uppercase tracking-[0.24em] xl:text-left" style={{ color: 'var(--nox-green)' }}>
-                  {cestTier === 'None' ? '— No Tier' : `${cestTier === 'Platinum' ? '💎' : cestTier === 'Gold' ? '🥇' : cestTier === 'Silver' ? '🥈' : '🥉'} ${cestTier}`}
-                </p>
-                <span className="text-[9px] font-data hidden xl:block" style={{ color: 'var(--text-ghost)' }}>
-                  ${TOKEN_PRICES.CEST.toFixed(2)}/CEST
-                </span>
+
+            {/* Minted badge */}
+            {mintedBenef && (
+              <div className="mt-2 hidden xl:block">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-sm">{mintedBenef.emoji}</span>
+                  <span className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--nox-green)' }}>
+                    {mintedBenef.label} Badge
+                  </span>
+                  <span className="ml-auto text-[9px] font-data px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,229,160,0.1)', color: 'var(--nox-green)' }}>
+                    NFT
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-[10px] font-data">
+                  <div className="rounded px-1.5 py-1 text-center" style={{ background: 'rgba(212,175,55,0.08)', color: 'var(--gold-primary)' }}>
+                    -{mintedBenef.discount}% fee
+                  </div>
+                  <div className="rounded px-1.5 py-1 text-center" style={{ background: 'rgba(0,229,160,0.08)', color: 'var(--nox-green)' }}>
+                    {multiplier.toFixed(2)}× airdrop
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Mobile: just show tier badge emoji */}
+            {mintedBenef && (
+              <p className="mt-1 text-center text-xs xl:hidden">{mintedBenef.emoji}</p>
+            )}
+
+            {/* Eligible but no badge yet */}
+            {cestTierBenefits && !mintedBenef && (
+              <div className="mt-2 hidden xl:block">
+                <p className="text-[10px] font-body mb-1" style={{ color: 'var(--text-ghost)' }}>
+                  Eligible: {cestTierBenefits.emoji} {cestTierBenefits.label}
+                </p>
+                <p className="text-[9px] font-body leading-snug" style={{ color: 'var(--text-ghost)' }}>
+                  -{cestTierBenefits.discount}% fee · {cestTierBenefits.multiplierBps / 100}× airdrop
+                </p>
+              </div>
+            )}
+
+            {/* Mint / Upgrade CTA */}
+            {(canMint || canUpgrade) && (
+              <Link
+                href="/airdrop"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[10px] font-body font-semibold uppercase tracking-widest transition-opacity hover:opacity-80 hidden xl:flex"
+                style={{ background: 'rgba(212,175,55,0.12)', color: 'var(--gold-primary)', border: '1px solid rgba(212,175,55,0.25)' }}
+              >
+                {canUpgrade ? '↑ Upgrade Badge' : `Mint Badge · ${mintCost?.toLocaleString()} CEST`}
+              </Link>
             )}
           </div>
         </div>
