@@ -168,13 +168,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       return
     }
 
-    // Resolve payment token address + amount in token's decimals
-    const isCest = currency === 'CEST'
-    const payTokenAddress = isCest ? ADDRESSES.cestToken : ADDRESSES.usdt
-    // USDT/USDC: 6 decimals. CEST: 18 decimals.
-    const payAmount = isCest
-      ? BigInt(Math.round(Number(tokenAmount) / TOKEN_PRICES.CEST)) * (10n ** 18n)
-      : tokenAmount * BigInt(Math.round(property.pricePerToken * 1_000_000))
+    // Payment is always USDT (6 decimals) — USDC uses same testnet mock contract.
+    // CEST payment requires Phase 1 smart contract update; button is disabled when CEST is selected.
+    const payTokenAddress = ADDRESSES.usdt
+    const payAmount = tokenAmount * BigInt(Math.round(property.pricePerToken * 1_000_000))
 
     try {
       await ensureArbitrumSepolia(eth)
@@ -651,12 +648,15 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                     <p className="text-[10px] font-body mb-1.5 uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>You pay</p>
                     {currency === 'CEST' ? (
                       <div>
-                        <p className="font-data text-xl" style={{ color: 'var(--text-primary)' }}>
+                        <p className="font-data text-xl" style={{ color: 'var(--text-ghost)' }}>
                           {tokenCount > 0 ? Math.round(totalCostCest).toLocaleString() : '0'}{' '}
-                          <span className="text-sm" style={{ color: 'var(--gold-primary)' }}>CEST</span>
+                          <span className="text-sm" style={{ color: 'var(--text-ghost)' }}>CEST</span>
                         </p>
                         <p className="text-[10px] font-body mt-1" style={{ color: 'var(--text-ghost)' }}>
-                          ≈ ${totalCost} · 1 CEST = $0.04
+                          ≈ ${totalCost} · 1 CEST = $0.04 · price estimate only
+                        </p>
+                        <p className="text-[10px] font-body mt-1.5 rounded px-2 py-1 inline-block" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: 'var(--text-ghost)' }}>
+                          CEST payment requires Phase 1 smart contract update
                         </p>
                       </div>
                     ) : (
@@ -697,26 +697,33 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <button
-                    onClick={handleBuy}
-                    disabled={
-                      !amount ||
-                      parseFloat(amount) <= 0 ||
-                      property.status === 'sold_out' ||
-                      buying
-                    }
-                    className="w-full py-3 px-4 rounded text-sm btn-gold disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    {property.status === 'sold_out'
-                      ? 'Sold Out'
-                      : buyStep === 'encrypting'
-                        ? '🔒 Encrypting...'
-                        : buyStep === 'approving'
-                          ? `⏳ Approving ${currency}...`
-                          : buyStep === 'purchasing'
-                            ? '⏳ Purchasing...'
-                            : `🔒 Encrypt & Buy with ${currency}`}
-                  </button>
+                  {currency === 'CEST' ? (
+                    <div className="flex items-center justify-between px-4 py-3 rounded text-sm font-body" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-ghost)', cursor: 'default' }}>
+                      <span>🔒 Buy with CEST</span>
+                      <span className="text-[10px] uppercase tracking-widest rounded px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>Q2 2026</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleBuy}
+                      disabled={
+                        !amount ||
+                        parseFloat(amount) <= 0 ||
+                        property.status === 'sold_out' ||
+                        buying
+                      }
+                      className="w-full py-3 px-4 rounded text-sm btn-gold disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      {property.status === 'sold_out'
+                        ? 'Sold Out'
+                        : buyStep === 'encrypting'
+                          ? '🔒 Encrypting...'
+                          : buyStep === 'approving'
+                            ? `⏳ Approving ${currency}...`
+                            : buyStep === 'purchasing'
+                              ? '⏳ Purchasing...'
+                              : `🔒 Encrypt & Buy with ${currency}`}
+                    </button>
+                  )}
                   <div className="flex items-center justify-between px-4 py-2.5 rounded text-sm font-body" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-ghost)', cursor: 'default' }}>
                     <span>Buy with Fiat</span>
                     <span className="text-[10px] uppercase tracking-widest rounded px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)' }}>Coming Soon</span>
