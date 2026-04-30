@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { encodeFunctionData } from 'viem'
+import { createPublicClient, encodeFunctionData, http } from 'viem'
 import { useClientAccount as useAccount } from '../../components/web3/useClientAccount'
 import { ConfidentialBadge } from '../../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../../components/ui/TransactionModal'
@@ -27,6 +27,7 @@ function extractMsg(err: unknown): string {
 }
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+const MAX_UINT256 = (1n << 256n) - 1n
 
 async function getChainId(eth: Ethereum): Promise<number> {
   const chainId = await eth.request({ method: 'eth_chainId' })
@@ -61,6 +62,7 @@ async function waitForReceipt(eth: Ethereum, hash: string): Promise<{ status: '0
   throw new Error('Transaction not confirmed after 2 minutes. Check Arbiscan.')
 }
 const PRIMARY_RPC = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://sepolia-rollup.arbitrum.io/rpc'
+const publicClient = createPublicClient({ chain: arbitrumSepolia, transport: http(PRIMARY_RPC) })
 
 const ARBITRUM_SEPOLIA_PARAMS = {
   chainId: '0x66eee',
@@ -84,12 +86,6 @@ function getErrorCode(err: unknown): number | undefined {
 }
 
 async function ensureArbitrumSepolia(eth: Ethereum) {
-  // Always try to update MetaMask's saved RPC to PRIMARY_RPC (Infura).
-  // wallet_addEthereumChain silently updates the chain config if it already exists.
-  try {
-    await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] })
-  } catch { /* ignore — MetaMask rejects if chain unchanged or user dismisses */ }
-
   if (await getChainId(eth) === arbitrumSepolia.id) return
 
   try {
@@ -101,6 +97,23 @@ async function ensureArbitrumSepolia(eth: Ethereum) {
 
   if (await getChainId(eth) !== arbitrumSepolia.id) {
     throw new Error('Switch your wallet to Arbitrum Sepolia (chain ID 421614).')
+  }
+}
+
+async function readAllowance(
+  owner: `0x${string}`,
+  token: `0x${string}`,
+  spender: `0x${string}`,
+): Promise<bigint | undefined> {
+  try {
+    return await publicClient.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [owner, spender],
+    }) as bigint
+  } catch {
+    return undefined
   }
 }
 
@@ -172,10 +185,15 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
     // CEST payment requires Phase 1 smart contract update; button is disabled when CEST is selected.
     const payTokenAddress = ADDRESSES.usdt
     const payAmount = tokenAmount * BigInt(Math.round(property.pricePerToken * 1_000_000))
+    const buyer = address as `0x${string}`
+    const propertyAddress = property.contractAddress as `0x${string}`
 
     try {
       await ensureArbitrumSepolia(eth)
       setTxHash(undefined)
+
+      const currentAllowance = await readAllowance(buyer, payTokenAddress, propertyAddress)
+      const needsApproval = currentAllowance === undefined || currentAllowance < payAmount
 
       // Step 1: Submit iExec task — returns taskid immediately
       setBuyStep('encrypting')
@@ -207,22 +225,24 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       }
       if (!handle || !handleProof) throw new Error('iExec task timed out after 6 minutes.')
 
-      // Step 2: Approve payment token (USDT / USDC / CEST)
-      setBuyStep('approving')
-      showToast(`Approve ${currency}`, `Step 1/2 — confirm ${currency} approval in your wallet.`, 'info')
-
       const gasPrice = await getGasPrice()
-      const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, payAmount] })
-      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: payTokenAddress, data: approveData, gasPrice }] }) as string
-      const approveReceipt = await waitForReceipt(eth, approveTxHash)
-      if (approveReceipt.status === '0x0') throw new Error(`${currency} approval reverted on-chain. Check your balance and try again.`)
+      if (needsApproval) {
+        // Approve once with max allowance so later buys can skip this wallet prompt.
+        setBuyStep('approving')
+        showToast(`Approve ${currency}`, `Approve ${currency} once for this property contract. Future buys can skip this step.`, 'info')
+
+        const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [propertyAddress, MAX_UINT256] })
+        const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: payTokenAddress, data: approveData, gasPrice }] }) as string
+        const approveReceipt = await waitForReceipt(eth, approveTxHash)
+        if (approveReceipt.status === '0x0') throw new Error(`${currency} approval reverted on-chain. Check your balance and try again.`)
+      }
 
       // Step 3: Purchase tokens on-chain.
       setBuyStep('purchasing')
-      showToast('Purchasing', 'Step 2/2 — confirm token purchase in your wallet.', 'info')
+      showToast('Purchasing', needsApproval ? 'Final step — confirm token purchase in your wallet.' : 'Allowance already approved — confirm purchase only.', 'info')
 
       const purchaseData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'purchaseTokens', args: [handle, handleProof, tokenAmount] })
-      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: purchaseData, gasPrice }] }) as string
+      const purchaseTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: propertyAddress, data: purchaseData, gasPrice }] }) as string
       const purchaseReceipt = await waitForReceipt(eth, purchaseTxHash)
       if (purchaseReceipt.status === '0x0') throw new Error('Token purchase reverted on-chain.')
 

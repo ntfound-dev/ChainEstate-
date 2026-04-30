@@ -15,7 +15,7 @@ const rpcUrls = publicRpcUrl ? [publicRpcUrl, ...defaultRpcUrls] : defaultRpcUrl
 export const wagmiConfig = createConfig({
   chains: [arbitrumSepolia],
   connectors: [
-    injected(),
+    injected({ target: 'metaMask', unstable_shimAsyncInject: 1_000 }),
   ],
   transports: {
     [arbitrumSepolia.id]: fallback(rpcUrls.map((url) => http(url))),

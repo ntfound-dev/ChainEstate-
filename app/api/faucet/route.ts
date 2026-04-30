@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createWalletClient, http, parseUnits } from 'viem'
+import { createWalletClient, http, isAddress, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { arbitrumSepolia } from '../../lib/chains'
 
@@ -41,6 +41,17 @@ const TRANSFER_ABI = [
   },
 ]
 
+function getFaucetPrivateKey(): `0x${string}` | null {
+  const rawKey = (process.env.FAUCET_PRIVATE_KEY || process.env.PRIVATE_KEY || '').trim()
+  if (!rawKey || rawKey === 'YOUR_PRIVATE_KEY_HERE') return null
+
+  const pk = rawKey.startsWith('0x') ? rawKey : `0x${rawKey}`
+  if (!/^0x[0-9a-fA-F]{64}$/.test(pk)) {
+    throw new Error('Faucet private key is invalid. Use a 32-byte hex key.')
+  }
+  return pk as `0x${string}`
+}
+
 export async function POST(req: NextRequest) {
   let body: { address?: string; token?: string }
   try {
@@ -53,6 +64,9 @@ export async function POST(req: NextRequest) {
   if (!address || !token || !['usdt', 'cest'].includes(token)) {
     return NextResponse.json({ error: 'Missing or invalid address/token' }, { status: 400 })
   }
+  if (!isAddress(address)) {
+    return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 })
+  }
 
   const key = `${address.toLowerCase()}_${token}`
   const lastClaim = cooldowns.get(key)
@@ -64,19 +78,30 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const rawKey = process.env.FAUCET_PRIVATE_KEY?.trim()
-  if (!rawKey) {
-    return NextResponse.json({ error: 'Faucet wallet not configured' }, { status: 503 })
+  let pk: `0x${string}` | null
+  try {
+    pk = getFaucetPrivateKey()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Faucet private key is invalid'
+    console.error('[faucet] configuration error:', message)
+    return NextResponse.json({ error: message }, { status: 503 })
+  }
+  if (!pk) {
+    return NextResponse.json(
+      { error: 'Faucet wallet not configured. Set FAUCET_PRIVATE_KEY or PRIVATE_KEY in the deployment environment.' },
+      { status: 503 },
+    )
   }
 
-  const pk: `0x${string}` = rawKey.startsWith('0x') ? (rawKey as `0x${string}`) : `0x${rawKey}`
   const account = privateKeyToAccount(pk)
 
   const walletClient = createWalletClient({
     account,
     chain: arbitrumSepolia,
     transport: http(
-      process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc',
+      process.env.ARBITRUM_SEPOLIA_RPC ||
+        process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ||
+        'https://sepolia-rollup.arbitrum.io/rpc',
     ),
   })
 

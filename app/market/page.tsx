@@ -17,6 +17,7 @@ import { arbitrumSepolia } from '../lib/chains'
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
 declare global { interface Window { ethereum?: Ethereum } }
+const MAX_UINT256 = (1n << 256n) - 1n
 
 function extractMsg(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -49,13 +50,22 @@ const ARBITRUM_SEPOLIA_PARAMS = {
   blockExplorerUrls: ['https://sepolia.arbiscan.io'],
 }
 
+function getErrorCode(err: unknown): number | undefined {
+  if (typeof err === 'object' && err !== null && 'code' in err) {
+    const code = (err as { code?: unknown }).code
+    if (typeof code === 'number') return code
+    if (typeof code === 'string') return Number(code)
+  }
+  return undefined
+}
+
 async function ensureArbitrumSepolia(eth: Ethereum): Promise<void> {
-  try { await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] }) } catch { /* ignore */ }
   const chainId = await getChainId(eth)
   if (chainId === 421614) return
   try {
     await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x66eee' }] })
-  } catch {
+  } catch (err) {
+    if (getErrorCode(err) !== 4902) throw err
     await eth.request({ method: 'wallet_addEthereumChain', params: [ARBITRUM_SEPOLIA_PARAMS] })
   }
   if (await getChainId(eth) !== 421614) throw new Error('Switch your wallet to Arbitrum Sepolia (chain ID 421614).')
@@ -194,6 +204,19 @@ export default function MarketPage() {
           // RPC read failed — proceed and let the on-chain tx handle it
         }
 
+        let needsApproval = true
+        try {
+          const allowance = await walletClient.readContract({
+            address: ADDRESSES.usdt,
+            abi: ERC20_ABI,
+            functionName: 'allowance',
+            args: [address as `0x${string}`, ADDRESSES.secondaryMarket],
+          }) as bigint
+          needsApproval = allowance < totalUsdt
+        } catch {
+          needsApproval = true
+        }
+
         // ── Step 2: iExec iApp (Intel TDX TEE) → Nox encrypted handle ────
         setTradeStep('encrypting')
         showToast(
@@ -235,19 +258,21 @@ export default function MarketPage() {
         }
         if (!handle || !handleProof) throw new Error('iExec task timed out after 6 minutes.')
 
-        // ── Step 3: Approve USDT ──────────────────────────────────────────
-        setTradeStep('approving')
-        showToast('Approve USDT', 'Step 2/3 — confirm USDT approval in your wallet.', 'info')
-
         const gasPrice = await getGasPrice()
-        const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, totalUsdt] })
-        const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gasPrice }] }) as `0x${string}`
-        const approveReceipt = await waitForReceipt(eth, approveTx)
-        if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
+        if (needsApproval) {
+          // Approve once with max allowance so later market buys skip this wallet prompt.
+          setTradeStep('approving')
+          showToast('Approve USDT', 'Approve USDT once for SecondaryMarket. Future buys can skip this step.', 'info')
+
+          const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [ADDRESSES.secondaryMarket, MAX_UINT256] })
+          const approveTx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gasPrice }] }) as `0x${string}`
+          const approveReceipt = await waitForReceipt(eth, approveTx)
+          if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain.')
+        }
 
         // ── Step 4: executeBuy with TEE-sealed handle ─────────────────────
         setTradeStep('executing')
-        showToast('Execute buy', 'Step 3/3 — confirm purchase in your wallet.', 'info')
+        showToast('Execute buy', needsApproval ? 'Final step — confirm purchase in your wallet.' : 'Allowance already approved — confirm purchase only.', 'info')
 
         const buyData = encodeFunctionData({
           abi: SECONDARY_MARKET_ABI,
