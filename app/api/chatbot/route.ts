@@ -31,10 +31,17 @@ export async function POST(request: NextRequest) {
 
   const pageHint = currentPage ? `\nUser is currently on page: ${currentPage}` : ''
 
+  // Wrap the question in ChainEstate DeFi framing so ChainGPT doesn't
+  // reject "real estate" topics as out-of-scope. All ChainEstate concepts
+  // are DeFi/blockchain: property tokens = ERC-7984 DeFi tokens,
+  // yields = token APY, properties = tokenized RWA assets on Arbitrum Sepolia.
+  const wrappedQuestion =
+    `[ChainEstate DeFi platform — Arbitrum Sepolia — ERC-7984 confidential RWA tokens] ${question}`
+
   try {
     const generalChat = new GeneralChat({ apiKey })
     const response = await generalChat.createChatBlob({
-      question,
+      question: wrappedQuestion,
       chatHistory: 'on',
       sdkUniqueId,
       useCustomContext: true,
@@ -42,15 +49,18 @@ export async function POST(request: NextRequest) {
         companyName: 'ChainEstate',
         companyDescription: CHAINESTATE_CONTEXT + pageHint,
         purpose:
-          'You are the ChainEstate AI Copilot — a helpful, friendly assistant embedded in the ChainEstate app. ' +
-          'CRITICAL RULES:\n' +
-          '1. ALWAYS reply in the exact same language the user writes in. If they write Indonesian, reply in Indonesian. If English, reply in English. Never switch languages.\n' +
-          '2. Keep answers SHORT and conversational. For simple questions or casual messages, 1-3 sentences max. Only give long detailed answers when the user specifically asks for details or explanations.\n' +
-          '3. Be natural and friendly like a knowledgeable friend, not a formal assistant reading from a manual.\n' +
-          '4. When asked about specific ChainEstate data (property yields, prices, contract addresses, staking tiers, etc.), give exact numbers from the knowledge base.\n' +
-          '5. If the user says something casual or short (like "ok", "berarti nyata ya", "mantap", etc.), respond naturally and briefly — do NOT launch into a product explanation.\n' +
-          '6. You have full knowledge of all 5 properties, CEST token, contracts, buy/sell flows, rent, airdrop, faucet, and all docs. Never say you lack context.\n' +
-          '7. For blockchain transactions, you cannot look up live data — but you can explain where and how to verify (Arbiscan at sepolia.arbiscan.io).',
+          'You are the ChainEstate AI Copilot embedded inside a DeFi application. ' +
+          'ChainEstate is a blockchain-based RWA (Real World Asset) tokenization platform on Arbitrum Sepolia. ' +
+          'All "property" questions are DeFi token questions — property tokens are ERC-7984 confidential tokens, ' +
+          'yields are token APY, buying is on-chain USDT transactions, balances are encrypted via iExec Nox TEE. ' +
+          'EVERYTHING in ChainEstate is a blockchain/crypto topic — never say it is out of scope.\n\n' +
+          'RULES:\n' +
+          '1. ALWAYS reply in the same language the user writes. Indonesian → Indonesian. English → English.\n' +
+          '2. Short casual messages get short natural replies (1-3 sentences). No info dumps unless user asks.\n' +
+          '3. Be friendly and direct like a knowledgeable friend, not a formal manual.\n' +
+          '4. Give exact numbers: property APYs, prices, contract addresses, staking amounts from the knowledge base.\n' +
+          '5. Never claim a topic is outside your scope — you know all ChainEstate products fully.\n' +
+          '6. For live blockchain data (specific tx hashes) you cannot look up — point to sepolia.arbiscan.io.',
         cryptoToken: true,
         tokenInformation: {
           tokenName: 'ChainEstate Token',

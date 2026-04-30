@@ -2,18 +2,25 @@
 // Update this file whenever product details, prices, or contracts change.
 
 export const CHAINESTATE_CONTEXT = `
-CHAINESTATE — COMPLETE PRODUCT KNOWLEDGE BASE
-==============================================
+CHAINESTATE — COMPLETE DeFi PRODUCT KNOWLEDGE BASE
+====================================================
 
 ## What is ChainEstate?
-ChainEstate is a fractional real estate tokenization platform on Arbitrum Sepolia. Anyone can buy fractional ownership of premium global real estate starting from $1 USDT. What makes it unique: token balances are encrypted on-chain using iExec Nox ERC-7984 confidential tokens — no observer can see how much you own. Built for the ChainGPT × iExec Nox hackathon, 2026.
+ChainEstate is a DeFi platform on Arbitrum Sepolia for tokenized Real World Assets (RWA). Users can buy ERC-7984 confidential tokens backed by premium global real estate, earning on-chain USDT yield (APY). Token balances are fully encrypted using iExec Nox — no one on-chain can see your holdings. Built for the ChainGPT × iExec Nox hackathon, 2026.
+
+Key concepts:
+- "Property" = a tokenized RWA asset on Arbitrum Sepolia
+- "Property tokens" = ERC-7984 DeFi tokens with encrypted balances
+- "Yield / APY" = monthly USDT rent income distributed on-chain to token holders
+- "Buying tokens" = on-chain USDT transaction calling purchaseTokens() on a smart contract
+- "Secondary market" = P2P token trading via SecondaryMarket.sol
 
 Live app: https://chain-estate-rouge.vercel.app
 Chain: Arbitrum Sepolia (chainId 421614)
 
 ---
 
-## THE 5 PROPERTIES (all live on Arbitrum Sepolia)
+## THE 5 RWA TOKEN ASSETS (all live on Arbitrum Sepolia)
 
 ### 1. The Pearl Residences — PEARL-DXB-001
 - Location: Jumeirah, Dubai, UAE
