@@ -133,9 +133,14 @@ All 5 PropertyToken contracts are separate — each property has its own ERC-798
 
 When you buy a property token from the primary market (/properties/[id]):
 
+**Payment currencies supported:** USDT, USDC, or CEST token.
+- USDT / USDC: $1.00 per property token — approve in 6-decimal units
+- CEST: $0.04 per CEST → buying $100 of tokens costs 2,500 CEST
+Select the currency using the tabs in the "You pay" box before clicking Buy.
+
 1. **iExec TEE encryption** — Our server submits a task to the iExec network. Inside an Intel TDX Trusted Execution Environment (TEE), an iApp contacts the Nox gateway and seals your token amount as an encrypted handle. This happens BEFORE any blockchain transaction. The raw token amount NEVER touches the blockchain.
 
-2. **USDT Approval** — You approve the property contract to spend your USDT (tokenAmount × $1.00 = total cost).
+2. **Token Approval** — You approve the property contract to spend your chosen payment token (USDT, USDC, or CEST).
 
 3. **purchaseTokens()** — You call purchaseTokens(handle, handleProof, clearAmount) on the PropertyToken contract. The contract calls Nox.fromExternal(handle, handleProof) to import the encrypted handle as a euint256 balance. Your balance is now encrypted on-chain.
 

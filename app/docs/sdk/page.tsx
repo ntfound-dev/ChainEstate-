@@ -96,13 +96,18 @@ const { handle, handleProof } = await handleClient.encryptInput(
   tokenAmount, 'uint256', propertyTokenAddress as \`0x\${string}\`
 )
 
-// Step 2 — Approve USDT (6 decimals)
+// Step 2 — Approve payment token (USDT / USDC / CEST)
+// USDT + USDC: 6 decimals ($1.00 = 1_000_000). CEST: 18 decimals ($0.04/CEST).
+// Example: USDT path (default)
+const payToken = ADDRESSES.usdt           // or ADDRESSES.usdc, or ADDRESSES.cestToken
+const payAmount = BigInt(tokenAmount) * 1_000_000n  // USDT/USDC: 6 dec
+// CEST path: BigInt(Math.round(tokenAmount / 0.04)) * 10n**18n
 const approveData = encodeFunctionData({
   abi: ERC20_ABI, functionName: 'approve',
-  args: [propertyTokenAddress, BigInt(tokenAmount) * 1_000_000n],
+  args: [propertyTokenAddress, payAmount],
 })
 const approveTx = await eth.request({ method: 'eth_sendTransaction',
-  params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gas: '0x13880' }] })
+  params: [{ from: address, to: payToken, data: approveData, gas: '0x13880' }] })
 const approveRx = await waitForReceipt(approveTx as string)
 if (approveRx.status === '0x0') throw new Error('Approval reverted')
 

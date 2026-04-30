@@ -11,6 +11,7 @@ export const CEST_MARKET_CAP      = CEST_TOTAL_SUPPLY * TOKEN_PRICES.CEST  // $4
 // Contract addresses — Arbitrum Sepolia testnet
 export const ADDRESSES = {
   usdt:                    '0x9a822B9A50D090CfcCa1e6474efCd653112d8501' as const,
+  usdc:                    '0x9a822B9A50D090CfcCa1e6474efCd653112d8501' as const, // testnet: same mock ERC20 as USDT
   registry:                '0xCdBCA38E4C86bdC74Cd49D93cE2B88D3ecC00d5e' as const,
   secondaryMarket:         '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa' as const,
   rentDistributor:         '0x80E0e5f6488FA2726c042a204344281974f72609' as const,

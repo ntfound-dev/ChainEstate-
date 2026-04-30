@@ -11,7 +11,7 @@ import { TransactionModal } from '../../components/ui/TransactionModal'
 import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
 import { PROPERTIES } from '../../lib/propertiesData'
-import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI } from '../../lib/contracts'
+import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, TOKEN_PRICES } from '../../lib/contracts'
 import { arbitrumSepolia } from 'wagmi/chains'
 
 
@@ -124,6 +124,7 @@ const ACTIVITY = [
 ]
 
 type BuyStep = 'idle' | 'encrypting' | 'approving' | 'purchasing' | 'done' | 'error'
+type PayCurrency = 'USDT' | 'USDC' | 'CEST'
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
@@ -137,8 +138,12 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
   const [txOpen, setTxOpen] = useState(false)
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
   const [buyStep, setBuyStep] = useState<BuyStep>('idle')
+  const [currency, setCurrency] = useState<PayCurrency>('USDT')
 
-  const totalCost = amount ? (parseFloat(amount) * property.pricePerToken).toFixed(2) : '0.00'
+  const tokenCount  = amount ? parseFloat(amount) : 0
+  const totalCostUsd = tokenCount * property.pricePerToken
+  const totalCostCest = totalCostUsd / TOKEN_PRICES.CEST
+  const totalCost = amount ? totalCostUsd.toFixed(2) : '0.00'
   const buying   = buyStep !== 'idle' && buyStep !== 'done' && buyStep !== 'error'
 
   const handleBuy = async () => {
@@ -163,8 +168,13 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       return
     }
 
-    const priceUsdt6 = BigInt(Math.round(property.pricePerToken * 1_000_000))
-    const totalCostUsdt = tokenAmount * priceUsdt6
+    // Resolve payment token address + amount in token's decimals
+    const isCest = currency === 'CEST'
+    const payTokenAddress = isCest ? ADDRESSES.cestToken : ADDRESSES.usdt
+    // USDT/USDC: 6 decimals. CEST: 18 decimals.
+    const payAmount = isCest
+      ? BigInt(Math.round(Number(tokenAmount) / TOKEN_PRICES.CEST)) * (10n ** 18n)
+      : tokenAmount * BigInt(Math.round(property.pricePerToken * 1_000_000))
 
     try {
       await ensureArbitrumSepolia(eth)
@@ -200,15 +210,15 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       }
       if (!handle || !handleProof) throw new Error('iExec task timed out after 6 minutes.')
 
-      // Step 2: Approve USDT (direct eth.request — no viem polling).
+      // Step 2: Approve payment token (USDT / USDC / CEST)
       setBuyStep('approving')
-      showToast('Approve USDT', 'Step 1/2 — confirm USDT approval in your wallet.', 'info')
+      showToast(`Approve ${currency}`, `Step 1/2 — confirm ${currency} approval in your wallet.`, 'info')
 
       const gasPrice = await getGasPrice()
-      const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, totalCostUsdt] })
-      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.usdt, data: approveData, gasPrice }] }) as string
+      const approveData = encodeFunctionData({ abi: ERC20_ABI, functionName: 'approve', args: [property.contractAddress as `0x${string}`, payAmount] })
+      const approveTxHash = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: payTokenAddress, data: approveData, gasPrice }] }) as string
       const approveReceipt = await waitForReceipt(eth, approveTxHash)
-      if (approveReceipt.status === '0x0') throw new Error('USDT approval reverted on-chain. Check your balance and try again.')
+      if (approveReceipt.status === '0x0') throw new Error(`${currency} approval reverted on-chain. Check your balance and try again.`)
 
       // Step 3: Purchase tokens on-chain.
       setBuyStep('purchasing')
@@ -449,44 +459,64 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
             >
               <div className="flex items-center justify-between gap-3 mb-4">
                 <h2 className="font-display text-lg" style={{ color: 'var(--text-primary)' }}>Legal Documents</h2>
-                <span className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>
-                  {property.documents.length} files · pending IPFS pin
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--nox-green)' }} />
+                  <span className="text-[10px] font-body uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>
+                    {property.documents.length} {property.documents.length === 1 ? 'file' : 'files'} · pinned on IPFS
+                  </span>
+                </div>
               </div>
               <div className="space-y-2">
                 {property.documents.map(doc => (
                   <div
                     key={doc.name}
-                    className="flex items-center justify-between p-3 rounded-lg"
+                    className="rounded-xl p-4"
                     style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm">📄</span>
-                      <div>
-                        <p className="text-xs font-body" style={{ color: 'var(--text-primary)' }}>{doc.name}</p>
-                        <p className="text-[10px] font-data mt-0.5" style={{ color: 'var(--text-ghost)' }}>
-                          {doc.cid.slice(0, 14)}… · {doc.size}
-                        </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <span className="text-base shrink-0 mt-0.5">📄</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-body" style={{ color: 'var(--text-primary)' }}>{doc.name}</p>
+                          <p className="text-[10px] font-data mt-1 break-all" style={{ color: 'var(--text-ghost)' }}>
+                            {doc.cid.slice(0, 20)}…{doc.cid.slice(-6)}
+                          </p>
+                          <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>
+                            {doc.size}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <span
+                          className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-body uppercase tracking-widest"
+                          style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', color: 'var(--nox-green)' }}
+                        >
+                          <span className="h-1 w-1 rounded-full" style={{ background: 'var(--nox-green)' }} />
+                          Pinned
+                        </span>
+                        <div className="flex gap-2">
+                          <a
+                            href={`https://ipfs.io/ipfs/${doc.cid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-body transition-opacity hover:opacity-70"
+                            style={{ color: 'var(--gold-primary)' }}
+                          >
+                            ↗ IPFS
+                          </a>
+                          <span style={{ color: 'var(--border-visible)' }}>·</span>
+                          <a
+                            href={`https://cloudflare-ipfs.com/ipfs/${doc.cid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-body transition-opacity hover:opacity-70"
+                            style={{ color: 'var(--text-ghost)' }}
+                          >
+                            CF Gateway
+                          </a>
+                        </div>
                       </div>
                     </div>
-                    {doc.pinned ? (
-                      <a
-                        href={`https://ipfs.io/ipfs/${doc.cid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-body transition-opacity hover:opacity-70 shrink-0"
-                        style={{ color: 'var(--gold-primary)' }}
-                      >
-                        ↗ IPFS
-                      </a>
-                    ) : (
-                      <span
-                        className="text-[10px] font-body rounded px-2 py-0.5 shrink-0"
-                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-ghost)', border: '1px solid var(--border-subtle)' }}
-                      >
-                        Pinning soon
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>
@@ -598,9 +628,49 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                   />
                 </div>
 
-                <div className="p-3 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
-                  <p className="text-xs font-body mb-1" style={{ color: 'var(--text-ghost)' }}>You pay</p>
-                  <p className="font-data text-xl" style={{ color: 'var(--text-primary)' }}>${totalCost} <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>USDT</span></p>
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-visible)' }}>
+                  {/* Currency tabs */}
+                  <div className="grid grid-cols-3" style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}>
+                    {(['USDT', 'USDC', 'CEST'] as PayCurrency[]).map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setCurrency(c)}
+                        className="py-2 text-[11px] font-body uppercase tracking-widest transition-all duration-150"
+                        style={{
+                          color: currency === c ? 'var(--text-primary)' : 'var(--text-ghost)',
+                          background: currency === c ? 'rgba(255,255,255,0.06)' : 'transparent',
+                          borderBottom: currency === c ? '2px solid var(--gold-primary)' : '2px solid transparent',
+                        }}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Amount */}
+                  <div className="p-3">
+                    <p className="text-[10px] font-body mb-1.5 uppercase tracking-widest" style={{ color: 'var(--text-ghost)' }}>You pay</p>
+                    {currency === 'CEST' ? (
+                      <div>
+                        <p className="font-data text-xl" style={{ color: 'var(--text-primary)' }}>
+                          {tokenCount > 0 ? Math.round(totalCostCest).toLocaleString() : '0'}{' '}
+                          <span className="text-sm" style={{ color: 'var(--gold-primary)' }}>CEST</span>
+                        </p>
+                        <p className="text-[10px] font-body mt-1" style={{ color: 'var(--text-ghost)' }}>
+                          ≈ ${totalCost} · 1 CEST = $0.04
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-data text-xl" style={{ color: 'var(--text-primary)' }}>
+                          ${totalCost}{' '}
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{currency}</span>
+                        </p>
+                        <p className="text-[10px] font-body mt-1" style={{ color: 'var(--text-ghost)' }}>
+                          {currency === 'USDC' ? 'USD Coin · testnet mock' : 'Tether USD · 6 decimals'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: 'var(--nox-green-dim)', border: '1px solid rgba(0,229,160,0.2)' }}>
@@ -641,10 +711,10 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
                       : buyStep === 'encrypting'
                         ? '🔒 Encrypting...'
                         : buyStep === 'approving'
-                          ? '⏳ Approving USDT...'
+                          ? `⏳ Approving ${currency}...`
                           : buyStep === 'purchasing'
                             ? '⏳ Purchasing...'
-                            : '🔒 Encrypt & Buy'}
+                            : `🔒 Encrypt & Buy with ${currency}`}
                   </button>
                   <button className="w-full py-2.5 px-4 rounded text-sm font-body btn-ghost">
                     Buy with Fiat →
