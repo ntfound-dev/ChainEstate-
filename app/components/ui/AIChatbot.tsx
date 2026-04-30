@@ -12,10 +12,10 @@ interface ChatMessage {
 }
 
 const QUICK_PROMPTS = [
-  'Which property has the highest yield?',
-  'How do I buy my first property token?',
-  'What is CEST and how do I stake it?',
-  'How does iExec Nox keep my balance private?',
+  'Properti mana yang yield-nya paling tinggi?',
+  'Cara beli token properti pertama kali?',
+  'Apa itu CEST dan cara stake-nya?',
+  'Bagaimana iExec Nox menyembunyikan saldo?',
 ]
 
 function SparkleIcon({ size = 14 }: { size?: number }) {
@@ -54,7 +54,7 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Hi! I know everything about ChainEstate — all 5 properties, yields, contract addresses, how buying works, CEST staking tiers, iExec Nox privacy, the airdrop, faucet, and docs. Ask me anything.',
+      content: 'Halo! Saya tahu segalanya tentang ChainEstate — 5 properti, yield, kontrak, cara beli/jual, CEST staking, privasi iExec Nox, airdrop, faucet, dan docs. Tanya apa saja, balas pakai bahasa apapun.',
     },
   ])
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -86,7 +86,11 @@ export function AIChatbot() {
       const response = await fetch('/api/chatbot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim(), sdkUniqueId: sessionId }),
+        body: JSON.stringify({
+          question: question.trim(),
+          sdkUniqueId: sessionId,
+          currentPage: window.location.pathname,
+        }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Request failed.')
@@ -317,7 +321,7 @@ export function AIChatbot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything… (Enter to send)"
+                placeholder="Tanya apa saja… (Enter untuk kirim)"
                 rows={2}
                 className="flex-1 resize-none rounded-2xl px-4 py-3 text-[13px] outline-none transition-all"
                 style={{
