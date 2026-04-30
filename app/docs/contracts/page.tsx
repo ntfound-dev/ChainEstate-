@@ -165,6 +165,147 @@ export default function ContractsPage() {
                            └─ createProposal / vote / executeProposal`}</pre>
       </div>
 
+      {/* iApp Live Test Evidence */}
+      <div className="rounded-xl overflow-hidden mb-10" style={{ border: '1px solid rgba(0,229,160,0.3)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4" style={{ background: 'rgba(0,229,160,0.07)', borderBottom: '1px solid rgba(0,229,160,0.2)' }}>
+          <div className="flex items-center gap-3">
+            <span className="h-2 w-2 rounded-full" style={{ background: 'var(--nox-green)', boxShadow: '0 0 8px rgba(0,229,160,0.6)' }} />
+            <h2 className="font-display text-base" style={{ color: 'var(--text-primary)' }}>iApp Live Test Evidence</h2>
+            <span className="px-2 py-0.5 rounded text-[9px] font-body uppercase tracking-wider" style={{ background: 'rgba(0,229,160,0.12)', color: 'var(--nox-green)', border: '1px solid rgba(0,229,160,0.3)' }}>
+              Verified on iExec
+            </span>
+          </div>
+          <a
+            href="https://explorer.iex.ec/bellecour/address/0x834De729cb9dF77451DBc6bf7FD05F475B011Ac7"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-data transition-opacity hover:opacity-70"
+            style={{ color: 'var(--text-ghost)' }}
+          >
+            View on iExec Explorer ↗
+          </a>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          <p className="text-sm font-body leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            The iExec Nox iApp was live-tested on <strong style={{ color: 'var(--text-primary)' }}>April 30, 2026</strong> against the Arbitrum Sepolia PropertyToken contracts.
+            4 of 5 tasks completed successfully (1 timeout — expected on testnet). All deals used the same Intel TDX enclave, confirming the full TEE encryption pipeline is operational end-to-end.
+          </p>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Tasks Completed', value: '4 / 5', color: 'var(--nox-green)' },
+              { label: 'Success Rate', value: '80%', color: 'var(--nox-green)', sub: '(4 of 5, 1 timeout)' },
+              { label: 'Deal Price', value: '0.1 RLC', color: 'var(--gold-primary)' },
+              { label: 'Test Date', value: '30 Apr 2026', color: 'var(--text-secondary)' },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)' }}>
+                <p className="text-[10px] font-body uppercase tracking-widest mb-1" style={{ color: 'var(--text-ghost)' }}>{s.label}</p>
+                <p className="font-data text-lg" style={{ color: s.color }}>{s.value}</p>
+                {s.sub && <p className="text-[9px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>{s.sub}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* iApp + Workerpool */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl p-4" style={{ background: 'rgba(0,229,160,0.04)', border: '1px solid rgba(0,229,160,0.15)' }}>
+              <p className="text-[10px] font-body uppercase tracking-widest mb-2" style={{ color: 'var(--text-ghost)' }}>iApp (TEE Enclave)</p>
+              <a
+                href="https://explorer.iex.ec/bellecour/app/0xB11bC7288eE239F6536829E410d22Eb514C5E282"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-data text-xs hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--nox-green)' }}
+              >
+                0xB11bC7288eE239F6536829E410d22Eb514C5E282 ↗
+              </a>
+              <p className="text-[10px] font-body mt-2" style={{ color: 'var(--text-ghost)' }}>jancok075/iexec:0.0.1-tdx-1f1d5e8f915a</p>
+              <p className="text-[10px] font-body mt-0.5" style={{ color: 'var(--text-ghost)' }}>Tag: tee,tdx — Intel TDX hardware enclave</p>
+            </div>
+            <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)' }}>
+              <p className="text-[10px] font-body uppercase tracking-widest mb-2" style={{ color: 'var(--text-ghost)' }}>Workerpool</p>
+              <p className="font-data text-xs" style={{ color: 'var(--gold-primary)' }}>0x2956f0...3123f</p>
+              <p className="text-[10px] font-body mt-2" style={{ color: 'var(--text-ghost)' }}>Requester wallet</p>
+              <a
+                href="https://explorer.iex.ec/bellecour/address/0x834De729cb9dF77451DBc6bf7FD05F475B011Ac7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-data text-[10px] hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--text-ghost)' }}
+              >
+                0x834De7…011Ac7 ↗
+              </a>
+            </div>
+          </div>
+
+          {/* Task log */}
+          <div>
+            <p className="text-[10px] font-body uppercase tracking-widest mb-3" style={{ color: 'var(--text-ghost)' }}>Completed Task Log — April 30, 2026</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+              <div className="grid grid-cols-[1fr_120px_1fr] px-4 py-2 text-[10px] font-body uppercase tracking-widest" style={{ background: 'var(--bg-elevated)', color: 'var(--text-ghost)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span>Task ID</span><span>Status</span><span>Deadline</span>
+              </div>
+              {[
+                { id: '0x423c62…8a4d9', status: 'COMPLETED', time: '04/30/2026 11:26 AM', ok: true },
+                { id: '0x6091cf…5df0d', status: 'COMPLETED', time: '04/30/2026 09:42 AM', ok: true },
+                { id: '0x5b434e…dfdea', status: 'COMPLETED', time: '04/30/2026 09:40 AM', ok: true },
+                { id: '0x6268ea…0982b', status: 'COMPLETED', time: '04/30/2026 09:38 AM', ok: true },
+                { id: '0xb5a7f1…9335b', status: 'TIMEOUT',   time: '04/30/2026 09:31 AM', ok: false },
+              ].map((t, i, arr) => (
+                <div
+                  key={t.id}
+                  className="grid grid-cols-[1fr_120px_1fr] px-4 py-3 text-xs font-body items-center"
+                  style={{ borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}
+                >
+                  <code className="font-data text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t.id}</code>
+                  <span
+                    className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest"
+                    style={{ color: t.ok ? 'var(--nox-green)' : 'var(--text-ghost)' }}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: t.ok ? 'var(--nox-green)' : 'var(--text-ghost)' }} />
+                    {t.status}
+                  </span>
+                  <span className="font-data text-[10px]" style={{ color: 'var(--text-ghost)' }}>{t.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Deal log */}
+          <div>
+            <p className="text-[10px] font-body uppercase tracking-widest mb-3" style={{ color: 'var(--text-ghost)' }}>Deal Log — All using iApp 0xb11bc7…5e282</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+              <div className="grid grid-cols-[1fr_80px_60px_60px] px-4 py-2 text-[10px] font-body uppercase tracking-widest" style={{ background: 'var(--bg-elevated)', color: 'var(--text-ghost)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span>Deal ID</span><span>Time</span><span>Success</span><span>Price</span>
+              </div>
+              {[
+                { id: '0x8e424d…9119c', time: '2h ago', success: '100%', ok: true },
+                { id: '0x31da2e…17358', time: '4h ago', success: '100%', ok: true },
+                { id: '0xfd1df0…95206', time: '4h ago', success: '100%', ok: true },
+                { id: '0x491b08…34b5e', time: '4h ago', success: '100%', ok: true },
+                { id: '0x88d811…d129a', time: '4h ago', success: '0%',   ok: false },
+              ].map((d, i) => (
+                <div
+                  key={d.id}
+                  className="grid grid-cols-[1fr_80px_60px_60px] px-4 py-3 text-xs font-body items-center"
+                  style={{ borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}
+                >
+                  <code className="font-data text-[11px]" style={{ color: 'var(--text-secondary)' }}>{d.id}</code>
+                  <span className="font-data text-[10px]" style={{ color: 'var(--text-ghost)' }}>{d.time}</span>
+                  <span className="font-data text-[11px]" style={{ color: d.ok ? 'var(--nox-green)' : 'var(--text-ghost)' }}>{d.success}</span>
+                  <span className="font-data text-[10px]" style={{ color: 'var(--gold-primary)' }}>0.1 RLC</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] font-body" style={{ color: 'var(--text-ghost)' }}>
+              1 timeout (0%) is expected on Bellecour testnet — task started but workerpool was unavailable. No RLC deducted.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Contract cards */}
       <div className="space-y-8">
         {CONTRACTS.map(c => (

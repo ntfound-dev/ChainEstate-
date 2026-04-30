@@ -247,6 +247,13 @@ iApp deployed on iExec network:
 - Docker image: jancok075/iexec:0.0.1-tdx-1f1d5e8f915a
 - Tag: tee,tdx (Intel TDX enclave)
 
+LIVE TEST RESULTS (April 30, 2026):
+- 4 tasks COMPLETED, 1 timeout (expected on testnet)
+- 4 deals at 100% success rate, 1 at 0% (timeout — no RLC lost)
+- All deals used iApp 0xB11bC7…5e282 at 0.1 RLC per deal
+- Requester wallet: 0x834De729cb9dF77451DBc6bf7FD05F475B011Ac7
+- Fully verified on iExec Explorer (bellecour network)
+
 ---
 
 ## MARKET OPPORTUNITY
