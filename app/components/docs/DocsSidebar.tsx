@@ -12,6 +12,7 @@ const SECTIONS = [
   { href: '/docs/roadmap',            label: 'Roadmap',             icon: '🗺️' },
   { href: '/docs/contracts',          label: 'Smart Contracts',     icon: '📜' },
   { href: '/docs/sdk',                label: 'SDK & Integration',   icon: '⚡' },
+  { href: '/docs/admin',              label: 'Control Room',        icon: '🔧' },
 ]
 
 export function DocsSidebar() {

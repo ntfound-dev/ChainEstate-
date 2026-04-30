@@ -7,6 +7,7 @@ const QUICK_LINKS = [
   { href: '/docs/roadmap',          icon: '🗺️', title: 'Roadmap',            desc: 'Milestones from testnet launch to global institutional adoption.' },
   { href: '/docs/contracts',        icon: '📜', title: 'Smart Contracts',    desc: 'Architecture, function signatures, IPFS document registry, iApp live test evidence.' },
   { href: '/docs/sdk',              icon: '⚡', title: 'SDK & Integration',  desc: 'iExec Nox handle client, buy/sell flows, direct transfer, governance voting, ABI reference.' },
+  { href: '/docs/admin',            icon: '🔧', title: 'Control Room',       desc: 'Admin panel guide — property management, rent distribution, investor registry, analytics, and what is live vs demo.' },
 ]
 
 const STATS = [
