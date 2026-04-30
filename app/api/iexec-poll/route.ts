@@ -41,7 +41,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Task completed — download and unzip result from IPFS
-    const resultResponse = await iexec.task.fetchResults(taskid)
+    let resultResponse: Response
+    try {
+      resultResponse = await iexec.task.fetchResults(taskid)
+    } catch (fetchErr) {
+      const fetchMsg = fetchErr instanceof Error ? fetchErr.message : 'IPFS download failed'
+      console.error('[iexec-poll] fetchResults error:', fetchErr)
+      // Return pending so frontend keeps polling — IPFS may still be propagating
+      return NextResponse.json({ status: 'pending', taskStatus: TASK_COMPLETED, fetchError: fetchMsg })
+    }
+
     const arrayBuffer = await resultResponse.arrayBuffer()
     const zip = await JSZip.loadAsync(arrayBuffer)
 

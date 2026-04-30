@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createPublicClient, http, encodeFunctionData } from 'viem'
-import { arbitrumSepolia } from 'viem/chains'
 import { useClientAccount as useAccount } from '../components/web3/useClientAccount'
 import { MarketHeader } from '../components/market/MarketHeader'
 import { MarketListingsPanel } from '../components/market/MarketListingsPanel'
@@ -13,6 +12,7 @@ import { useToast } from '../components/ui/Toast'
 import { MARKET_LISTINGS, CEST_LISTING } from '../lib/marketData'
 import { PROPERTIES } from '../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, SECONDARY_MARKET_ABI } from '../lib/contracts'
+import { arbitrumSepolia } from '../lib/chains'
 
 
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }

@@ -12,7 +12,7 @@ import { useToast } from '../../components/ui/Toast'
 import { WalletButton } from '../../components/web3/WalletButton'
 import { PROPERTIES } from '../../lib/propertiesData'
 import { ADDRESSES, ERC20_ABI, PROPERTY_TOKEN_ABI, TOKEN_PRICES } from '../../lib/contracts'
-import { arbitrumSepolia } from 'wagmi/chains'
+import { arbitrumSepolia } from '../../lib/chains'
 
 
 function extractMsg(err: unknown): string {

@@ -1,8 +1,8 @@
 'use client'
 
 import { http, createConfig, fallback } from 'wagmi'
-import { arbitrumSepolia } from 'wagmi/chains'
 import { injected } from '@wagmi/core'
+import { arbitrumSepolia } from './chains'
 
 const publicRpcUrl = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC
 const defaultRpcUrls = [

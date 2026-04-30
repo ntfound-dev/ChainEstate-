@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createWalletClient, http, parseUnits } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { arbitrumSepolia } from 'viem/chains'
+import { arbitrumSepolia } from '../../lib/chains'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
