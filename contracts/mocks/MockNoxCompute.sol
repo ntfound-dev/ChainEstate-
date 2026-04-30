@@ -29,7 +29,7 @@ contract MockNoxCompute is INoxCompute {
         _transientAcl[handle][account] = false;
     }
 
-    function isAllowed(bytes32 handle, address account) external view override returns (bool) {
+    function isAllowed(bytes32 /* handle */, address /* account */) external pure override returns (bool) {
         // In local tests, always return true so encrypted ops don't block
         return true;
     }
@@ -40,13 +40,13 @@ contract MockNoxCompute is INoxCompute {
 
     function addViewer(bytes32 handle, address viewer) external override {}
 
-    function isViewer(bytes32 handle, address viewer) external view override returns (bool) {
+    function isViewer(bytes32 /* handle */, address /* viewer */) external pure override returns (bool) {
         return true;
     }
 
     function allowPublicDecryption(bytes32 handle) external override {}
 
-    function isPubliclyDecryptable(bytes32 handle) external view override returns (bool) {
+    function isPubliclyDecryptable(bytes32 /* handle */) external pure override returns (bool) {
         return true;
     }
 
@@ -62,9 +62,9 @@ contract MockNoxCompute is INoxCompute {
     }
 
     function validateDecryptionProof(
-        bytes32 handle,
-        bytes calldata decryptionProof
-    ) external view override returns (bytes memory) {
+        bytes32 /* handle */,
+        bytes calldata /* decryptionProof */
+    ) external pure override returns (bytes memory) {
         return abi.encode(uint256(0));
     }
 
@@ -229,7 +229,7 @@ contract MockNoxCompute is INoxCompute {
     function setKmsPublicKey(bytes calldata) external override {}
     function setGateway(address) external override {}
     function setProofExpirationDuration(uint256) external override {}
-    function kmsPublicKey() external view override returns (bytes memory) { return ""; }
-    function gateway() external view override returns (address) { return address(0); }
-    function proofExpirationDuration() external view override returns (uint256) { return 3600; }
+    function kmsPublicKey() external pure override returns (bytes memory) { return ""; }
+    function gateway() external pure override returns (address) { return address(0); }
+    function proofExpirationDuration() external pure override returns (uint256) { return 3600; }
 }

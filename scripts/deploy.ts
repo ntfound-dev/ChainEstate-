@@ -79,8 +79,21 @@ async function main() {
   const governanceAddress = await governance.getAddress();
   console.log("  ✓ ConfidentialGovernance:", governanceAddress);
 
-  // ─── 6. Wire up registry ─────────────────────────────────────────────────
-  console.log("6/6  Wiring contracts...");
+  // ─── 6. TierNFT ──────────────────────────────────────────────────────────
+  console.log("6/7  Deploying TierNFT...");
+  const TierNFT = await ethers.getContractFactory("TierNFT");
+  const tierNFT = await TierNFT.deploy(
+    cestAddress,       // CEST token (ERC20 + staking)
+    registryAddress,   // PropertyRegistry (Nox holder gate)
+    TREASURY,          // treasury receives mint costs
+    deployer.address   // initialOwner
+  );
+  await tierNFT.waitForDeployment();
+  const tierNFTAddress = await tierNFT.getAddress();
+  console.log("  ✓ TierNFT:", tierNFTAddress);
+
+  // ─── 7. Wire up registry ─────────────────────────────────────────────────
+  console.log("7/7  Wiring contracts...");
   let tx = await registry.setRentDistributor(rentDistributorAddress);
   await tx.wait();
   console.log("  ✓ Registry → RentDistributor linked");
@@ -123,6 +136,7 @@ async function main() {
   console.log("  RentDistributor:          ", rentDistributorAddress);
   console.log("  SecondaryMarket:          ", marketAddress);
   console.log("  ConfidentialGovernance:   ", governanceAddress);
+  console.log("  TierNFT:                  ", tierNFTAddress);
   console.log("  Demo PropertyToken:       ", demoPropertyTokenAddress);
   console.log("═══════════════════════════════════════════════════\n");
 
@@ -137,6 +151,7 @@ async function main() {
     rentDistributor: rentDistributorAddress,
     secondaryMarket: marketAddress,
     confidentialGovernance: governanceAddress,
+    tierNFT: tierNFTAddress,
     demoPropertyToken: demoPropertyTokenAddress,
     usdt: USDT_ADDRESS,
     mockUsdt: !process.env.USDT_ADDRESS ? USDT_ADDRESS : undefined,
