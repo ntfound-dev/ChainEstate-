@@ -43,7 +43,7 @@ export function DashboardShell({
     abi: TIER_NFT_ABI,
     functionName: 'hasBadge',
     args: addr ? [addr] : undefined,
-    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+    query: { enabled: !!addr },
   })
 
   const { data: badgeTierRaw } = useReadContract({
@@ -51,7 +51,7 @@ export function DashboardShell({
     abi: TIER_NFT_ABI,
     functionName: 'badgeTier',
     args: addr ? [addr] : undefined,
-    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+    query: { enabled: !!addr },
   })
 
   const { data: multiplierRaw } = useReadContract({
@@ -59,7 +59,7 @@ export function DashboardShell({
     abi: TIER_NFT_ABI,
     functionName: 'airdropMultiplierBps',
     args: addr ? [addr] : undefined,
-    query: { enabled: !!addr && ADDRESSES.tierNFT !== '0x0000000000000000000000000000000000000000' },
+    query: { enabled: !!addr },
   })
 
   // CEST has 18 decimals, USDT has 6

@@ -82,23 +82,25 @@ const CONTRACTS = [
   },
   {
     name: 'CESTToken.sol',
-    badge: 'ERC20Votes',
+    badge: 'ERC20Votes + Nox',
     badgeColor: 'var(--gold-primary)',
     address: '0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D',
     addressLabel: 'CEST Token',
-    desc: 'Utility and future-governance token. 1 Billion total supply. Current utility: time-lock staking for SecondaryMarket fee discounts (0.5% → 0% at PLATINUM). ERC20Votes is inherited for Compound-style delegation — it enables future DAO governance but is NOT used by ConfidentialGovernance.sol (which uses PropertyToken holder status instead). Price: $0.04 → $40M market cap.',
-    inherits: ['ERC20', 'ERC20Votes', 'ERC20Permit', 'Ownable'],
+    desc: 'Utility and future-governance token. 1 Billion total supply. Staking unlocks: (1) SecondaryMarket fee discounts (0.5% → 0% at PLATINUM), (2) TierNFT badge eligibility (determines mint tier). Now includes iExec Nox integration: after staking, holders can call encryptMyStake() to store their staked amount as an encrypted euint256 handle via Nox.fromExternal() — adding a confidential layer on top of the on-chain stake record. Price: $0.04 → $40M market cap.',
+    inherits: ['ERC20 (OZ)', 'ERC20Votes (OZ)', 'ERC20Permit (OZ)', 'Ownable (OZ)', 'Nox SDK (iExec)'],
     functions: [
-      { sig: 'stake(uint256 amount, uint256 lockDays)', access: 'public', desc: 'Time-lock CEST for fee discount tier. Min 30 days, max 365 days. Adds to existing staked amount.' },
-      { sig: 'unstake(uint256 amount)', access: 'holder', desc: 'Withdraw a specific amount of staked CEST after lock period expires. Tier recalculates automatically.' },
-      { sig: 'getTier(address account) → Tier', access: 'view', desc: 'Returns NONE/BRONZE/SILVER/GOLD/PLATINUM based on staked balance.' },
-      { sig: 'getFeeDiscount(address account) → uint256', access: 'view', desc: 'Returns discount in BPS (0–10000). PLATINUM = 10000 (100% free). Used by SecondaryMarket.' },
+      { sig: 'stake(uint256 amount, uint256 lockDays)', access: 'public', desc: 'Time-lock CEST for tier benefits. Min 30 days, max 365 days. Adds to existing staked amount. Tier automatically recalculates.' },
+      { sig: 'unstake(uint256 amount)', access: 'holder', desc: 'Withdraw a specific staked CEST amount after lock period expires. Tier recalculates automatically.' },
+      { sig: 'encryptMyStake(externalEuint256 handle, bytes handleProof)', access: 'holder', desc: 'iExec Nox: store your staked amount as encrypted euint256. Call after stake(). Uses Nox.fromExternal(handle, handleProof) — same TEE-verified pattern as PropertyToken. Only you can decrypt your stake amount off-chain via Nox JS SDK.' },
+      { sig: 'encryptedStake(address holder) → euint256', access: 'view', desc: 'Returns the Nox-encrypted stake handle. Only readable (decryptable) by the holder via Nox.allow().' },
+      { sig: 'getTier(address account) → StakingTier', access: 'view', desc: 'Returns NONE/BRONZE/SILVER/GOLD/PLATINUM based on staked balance. Read by TierNFT.getTier() for badge eligibility.' },
+      { sig: 'getFeeDiscount(address account) → uint256', access: 'view', desc: 'Returns discount in BPS (0–10000). PLATINUM = 10000 (100% free). Used by SecondaryMarket.executeBuy().' },
     ],
     notes: [
       'ERC20Votes = delegation only (future DAO) — ConfidentialGovernance uses PropertyToken holder status, not CEST',
+      'TierNFT reads CESTToken.getTier() to determine which badge tier a wallet qualifies for',
       'Faucet drips 2,400 CEST (~$96) per address per 24h on testnet',
       'Total supply: 1,000,000,000 · Airdrop pool: 250,000,000 (25%)',
-      'Uniswap listing planned Q2 2026 — not yet live on any DEX',
     ],
   },
   {
@@ -120,6 +122,33 @@ const CONTRACTS = [
       'Access control: registry.isHolder(propertyId, msg.sender) — no balance exposed',
       '1 address = 1 vote (balance-blind for privacy)',
       'Proposals: rent adjustments, maintenance, property status changes',
+    ],
+  },
+  {
+    name: 'TierNFT.sol',
+    badge: 'Soulbound NFT',
+    badgeColor: 'var(--nox-green)',
+    address: '0xda3072dd0B56e81B0361c760eCF512F1B85FFFfc',
+    addressLabel: 'TierNFT — live on Arbitrum Sepolia',
+    desc: 'Soulbound (non-transferable) ERC-721 tier badge. Minted by staking CEST via CESTToken.stake() and paying a CEST burn cost to the treasury (fee-discount reserve pool). Four tiers: Bronze / Silver / Gold / Platinum. Gold and Platinum additionally require the caller to hold a Nox ERC-7984 PropertyToken — proved via PropertyRegistry.isHolder(). On-chain testnet interaction points are stored as encrypted euint256 using Nox.fromExternal() + Nox.add() — the same TEE-verified pattern as PropertyToken.purchaseTokens(). No observer can read your point balance.',
+    inherits: ['ERC721 (OZ)', 'Ownable (OZ)', 'ReentrancyGuard (OZ)', 'Nox SDK (iExec)'],
+    functions: [
+      { sig: 'mint()', access: 'public', desc: 'Mint your tier badge. Requires: (1) CESTToken.stake(amount, days) to reach a tier, (2) CEST.approve(TierNFT, mintCost). CEST cost is sent to treasury. Gold/Platinum also require PropertyRegistry.isHolder() (Nox gate).' },
+      { sig: 'upgrade()', access: 'holder', desc: 'Upgrade existing badge to a higher tier by paying only the cost delta. Example: Bronze→Gold = 8,000−500 = 7,500 CEST. Requires CESTToken.getTier() to have increased.' },
+      { sig: 'recordPoints(address holder, externalEuint256 handle, bytes handleProof)', access: 'onlyOwner', desc: 'Record encrypted testnet interaction points. Uses Nox.fromExternal(handle, handleProof) — same pattern as PropertyToken. Points are accumulated as euint256: never readable on-chain. Only holder can decrypt via Nox JS SDK.' },
+      { sig: 'getTier(address holder) → Tier', access: 'view', desc: 'Returns live eligible tier based on CESTToken.getTier() (staked amount). None/Bronze/Silver/Gold/Platinum.' },
+      { sig: 'airdropMultiplierBps(address holder) → uint16', access: 'view', desc: 'Returns airdrop multiplier in BPS (100=1×, 110=1.1×, 125=1.25×, 150=1.5×, 200=2×) based on minted badge tier.' },
+      { sig: 'feeDiscount(address holder) → uint8', access: 'view', desc: 'Returns fee discount percentage (0/5/10/15/20) based on minted badge tier.' },
+      { sig: 'encryptedPoints(address holder) → euint256', access: 'view', desc: 'Returns the Nox-encrypted points handle. Requires Nox.allow() access — only holder can decrypt off-chain.' },
+      { sig: 'hasBadge(address holder) → bool', access: 'view', desc: 'Returns true if the wallet has minted a badge.' },
+      { sig: 'badgeTier(address holder) → Tier', access: 'view', desc: 'Returns the tier of the minted badge (may differ from live getTier if balance dropped).' },
+    ],
+    notes: [
+      'Soulbound: _update() reverts on wallet-to-wallet transfer (ERC-721 override)',
+      'Mint costs burned to treasury: Bronze 500 · Silver 2K · Gold 8K · Platinum 25K CEST',
+      'upgrade() costs delta only: e.g. Silver→Platinum = 25,000−2,000 = 23,000 CEST',
+      'Point amounts omitted from PointsRecorded event — confidentiality by design',
+      'Gold/Platinum require PropertyRegistry.isHolder() — must have purchased via Nox TEE first',
     ],
   },
 ]
@@ -145,24 +174,91 @@ export default function ContractsPage() {
         <p className="mb-1" style={{ color: 'var(--text-ghost)' }}>// Architecture</p>
         <pre className="overflow-x-auto">{`Wallet
   │
-  ├─ @iexec-nox/handle → { handle, handleProof }
+  ├─ @iexec-nox/handle → { handle, handleProof }   ← Intel TDX TEE
   │
   ├─ usdt.approve(PropertyToken, amount)
   └─ PropertyToken.purchaseTokens(handle, proof, amount)
-         │  euint256 balance (encrypted in ERC-7984)
+         │  Nox.fromExternal(handle, proof) → euint256 (encrypted balance)
+         │  Nox.allowThis + Nox.allow(amount, wallet)
          │
          ├─ PropertyRegistry.registerHolder(propertyId, wallet)
          │        │
-         │        └─ RentDistributor.distributeRent() → USDT per holder
+         │        ├─ RentDistributor.distributeRent() → USDT per holder (equal share)
+         │        │
+         │        └─ TierNFT.mint() ← Gold/Platinum require isHolder() gate
          │
-         └─ SecondaryMarket
-                  │  grantOperator → createListing(tokenContract, id, amount, price)
-                  │  usdt.approve(SecondaryMarket) → executeBuy(listingId)
-                  │  confidentialTransferFrom (encrypted)
-                  │
-                  └─ ConfidentialGovernance
-                           │  registry.isHolder() → onlyHolder
-                           └─ createProposal / vote / executeProposal`}</pre>
+         ├─ SecondaryMarket
+         │        │  grantOperator → createListing(tokenContract, id, amount, price)
+         │        │  usdt.approve(SecondaryMarket) → executeBuy(listingId)
+         │        │  confidentialTransferFrom (encrypted) via ERC-7984
+         │        │
+         │        └─ CESTToken.stake() → getTier() → fee discount (0.5% → 0%)
+         │
+         ├─ ConfidentialGovernance
+         │        │  registry.isHolder() → onlyHolder gate
+         │        └─ createProposal / castVote / finalizeProposal
+         │
+         └─ TierNFT (Soulbound)
+                  │  CESTToken.getTier() → badge tier eligibility
+                  │  CEST burned → treasury (fee-discount reserve)
+                  │  recordPoints(wallet, handle, proof) → euint256 encrypted points
+                  └─ airdropMultiplierBps / feeDiscount`}</pre>
+      </div>
+
+      {/* Nox Integration Summary */}
+      <h2 className="font-display text-xl mb-4" style={{ color: 'var(--text-primary)' }}>
+        iExec Nox Integration — All Contracts
+      </h2>
+      <div className="rounded-xl overflow-hidden mb-10" style={{ border: '1px solid rgba(0,229,160,0.25)' }}>
+        {[
+          ['Contract', 'Nox Imports', 'What It Does'],
+          [
+            'PropertyToken.sol',
+            'ERC7984, Nox, euint256, externalEuint256',
+            'purchaseTokens() — Nox.fromExternal(handle, proof) → euint256 encrypted balance. confidentialTransfer / confidentialTransferFrom for private moves.',
+          ],
+          [
+            'TierNFT.sol',
+            'Nox, euint256, externalEuint256',
+            'recordPoints() — Nox.fromExternal(handle, proof) + Nox.add() accumulates encrypted points per wallet. Only holder can decrypt via Nox JS SDK. PropertyRegistry.isHolder() gates Gold/Platinum mint.',
+          ],
+          [
+            'CESTToken.sol',
+            'Nox, euint256, externalEuint256',
+            'encryptMyStake() — after staking CEST, holder encrypts their stake amount as euint256. Nox.fromExternal(handle, proof). Confidential layer on top of public stake record.',
+          ],
+          [
+            'SecondaryMarket.sol',
+            'via ERC7984 interface',
+            'executeBuy() calls PropertyToken.operatorTransfer() which uses confidentialTransferFrom — encrypted amount moves without revealing quantity on-chain.',
+          ],
+          [
+            'RentDistributor.sol',
+            'via PropertyToken interface',
+            'distributeRent() calls operatorTransfer for each holder — USDT amounts auditable on-chain, but per-investor token positions remain encrypted.',
+          ],
+          [
+            'ConfidentialGovernance.sol',
+            'via PropertyRegistry',
+            'onlyHolder modifier uses registry.isHolder() — membership gated by ERC-7984 Nox token holding. 1-address-1-vote preserves balance privacy.',
+          ],
+        ].map(([contract, imports, what], i) => (
+          <div
+            key={contract}
+            className="grid px-5 py-3.5 text-xs font-body"
+            style={{
+              gridTemplateColumns: i === 0 ? '180px 220px 1fr' : '180px 220px 1fr',
+              background: i === 0 ? 'rgba(0,229,160,0.07)' : i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+              borderBottom: i < 6 ? '1px solid var(--border-subtle)' : 'none',
+              alignItems: 'start',
+              gap: '12px',
+            }}
+          >
+            <span className="font-data" style={{ color: i === 0 ? 'var(--text-ghost)' : 'var(--nox-green)' }}>{contract}</span>
+            <span className="font-data text-[10px] leading-relaxed" style={{ color: i === 0 ? 'var(--text-ghost)' : 'var(--gold-primary)' }}>{imports}</span>
+            <span style={{ color: i === 0 ? 'var(--text-ghost)' : 'var(--text-secondary)' }}>{what}</span>
+          </div>
+        ))}
       </div>
 
       {/* iApp Live Test Evidence */}

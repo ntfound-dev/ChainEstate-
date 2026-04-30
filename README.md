@@ -52,7 +52,7 @@ ChainEstate was **built from scratch** during the hackathon period. No prior cod
 
 | Component | Built During Hackathon |
 |-----------|----------------------|
-| 6 Solidity smart contracts (ERC-7984, Registry, Market, Governance, Rent, CEST) | ✅ |
+| 7 Solidity smart contracts (ERC-7984, Registry, Market, Governance, Rent, CEST, TierNFT) | ✅ |
 | iExec iApp (Docker + Intel TDX, deployed on Bellecour) | ✅ |
 | Full Next.js 14 frontend (14+ pages, Wagmi v2) | ✅ |
 | iExec TEE buy flow (`/api/iexec-buy` + `/api/iexec-poll`) | ✅ |
@@ -67,7 +67,7 @@ ChainEstate was **built from scratch** during the hackathon period. No prior cod
 ## Hackathon Criteria Checklist
 
 - ✅ **End-to-end without mock data** — Live contracts on Arbitrum Sepolia, real iExec TEE tasks, real IPFS CIDs
-- ✅ **Deployed on Arbitrum Sepolia** — All 11 contracts live (chainId 421614)
+- ✅ **Deployed on Arbitrum Sepolia** — All 12 contracts live (chainId 421614)
 - ✅ **`feedback.md`** — [Honest iExec DX feedback](./feedback.md) in this repo
 - ✅ **Video ≤ 4 min** — *(link to be added)*
 - ✅ **iExec Nox integration** — ERC-7984 covering all 5 utility types
@@ -173,6 +173,17 @@ The iApp was live-tested on **April 30, 2026** on Bellecour network.
 | **Governance** | Balance-blind 1-address-1-vote; whale dominance invisible on-chain | `ConfidentialGovernance.sol` |
 | **Access Control** | `onlyHolder` modifier via `registry.isHolder()` — no balance exposed | `ConfidentialGovernance.sol` |
 
+### iExec Nox — All Contracts Using Nox SDK
+
+| Contract | Nox Imports | Nox Usage |
+|----------|------------|-----------|
+| `PropertyToken.sol` | `ERC7984, Nox, euint256, externalEuint256` | `Nox.fromExternal(handle, proof)` → `euint256` encrypted balance on purchase and transfer |
+| `TierNFT.sol` | `Nox, euint256, externalEuint256` | `recordPoints()` — encrypted interaction points via `Nox.fromExternal` + `Nox.add`. Gold/Platinum gate via `registry.isHolder()` |
+| `CESTToken.sol` | `Nox, euint256, externalEuint256` | `encryptMyStake()` — holder stores staked amount as `euint256` after staking, decryptable only by them |
+| `SecondaryMarket.sol` | via ERC7984 | `executeBuy()` → `confidentialTransferFrom` (encrypted amount, no quantity visible on-chain) |
+| `RentDistributor.sol` | via PropertyToken | `distributeRent()` → `operatorTransfer` per holder (per-investor amounts private) |
+| `ConfidentialGovernance.sol` | via PropertyRegistry | `onlyHolder` gate via `registry.isHolder()` — 1-address-1-vote preserves balance privacy |
+
 ---
 
 ## On-Chain Transaction Flows
@@ -243,6 +254,7 @@ The iApp was live-tested on **April 30, 2026** on Bellecour network.
 | RentDistributor | `0x80E0e5f6488FA2726c042a204344281974f72609` | [↗](https://sepolia.arbiscan.io/address/0x80E0e5f6488FA2726c042a204344281974f72609) |
 | SecondaryMarket | `0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa` | [↗](https://sepolia.arbiscan.io/address/0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa) |
 | ConfidentialGovernance | `0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14` | [↗](https://sepolia.arbiscan.io/address/0x32AC35493ff1E4a550C36AB6BfD2f29a2b021a14) |
+| **TierNFT** | `0xda3072dd0B56e81B0361c760eCF512F1B85FFFfc` | [↗](https://sepolia.arbiscan.io/address/0xda3072dd0B56e81B0361c760eCF512F1B85FFFfc) |
 | MockUSDT (testnet) | `0x9a822B9A50D090CfcCa1e6474efCd653112d8501` | [↗](https://sepolia.arbiscan.io/address/0x9a822B9A50D090CfcCa1e6474efCd653112d8501) |
 
 ### Property Tokens — ERC-7984 (All 5 Live)
@@ -434,15 +446,29 @@ make test             # 73 passing
 | Standard | ERC20Votes |
 | Contract | [`0xC6c08db8…`](https://sepolia.arbiscan.io/address/0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D) |
 
-### Staking Tiers (SecondaryMarket Fee Discounts)
+### Staking Tiers — Unified Benefits (TierNFT + SecondaryMarket)
 
-| Tier | Stake Required | USD Value | Trading Fee |
-|------|---------------|-----------|-------------|
-| NONE | — | — | 0.5% |
-| BRONZE | 1,000 CEST | $40 | 0.45% (−10%) |
-| SILVER | 10,000 CEST | $400 | 0.35% (−30%) |
-| GOLD | 50,000 CEST | $2,000 | 0.25% (−50%) |
-| PLATINUM | 200,000 CEST | $8,000 | **0% (free)** |
+| Tier | Stake Required | TierNFT Mint Cost | Fee Discount | Airdrop Multiplier |
+|------|---------------|-------------------|-------------|-------------------|
+| NONE | — | — | 0.5% base | 1× |
+| BRONZE | 1,000 CEST | 500 CEST | 0.45% (−10%) | 1.10× |
+| SILVER | 10,000 CEST | 2,000 CEST | 0.35% (−30%) | 1.25× |
+| GOLD | 50,000 CEST + PropertyToken | 8,000 CEST | 0.25% (−50%) | 1.50× |
+| PLATINUM | 200,000 CEST + PropertyToken | 25,000 CEST | **0% (free)** | **2.00×** |
+
+> **Mint cost** (CEST) is burned to treasury — funds the fee-discount subsidy pool. Gold/Platinum require holding a Nox ERC-7984 PropertyToken (`registry.isHolder()`).
+
+### Tier Badge Flow
+```
+1. CESTToken.stake(amount, lockDays)          // lock CEST to reach a tier
+2. CESTToken.encryptMyStake(handle, proof)   // optional: encrypt stake amount via Nox
+3. CEST.approve(TierNFT, mintCost)
+4. TierNFT.mint()                            // CEST burned to treasury, soulbound NFT minted
+   └─ Gold/Platinum: must have purchased PropertyToken via Nox TEE first
+
+// Later: operator records on-chain interaction points (encrypted via Nox):
+5. TierNFT.recordPoints(wallet, handle, proof)  // euint256 — private, only holder can decrypt
+```
 
 ---
 
