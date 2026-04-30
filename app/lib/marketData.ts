@@ -1,7 +1,7 @@
 // Secondary market listings — prices in USDT per token, volumes in token count.
 // All trades execute via SecondaryMarket.sol on Arbitrum Sepolia.
 // listingId = on-chain listing index in SecondaryMarket.listings mapping.
-// CEST entry is governance token (DEX only, not via SecondaryMarket).
+// CEST entry is governance token (Uniswap listing Q2 2026, not yet live on any DEX).
 
 export const CEST_LISTING = {
   listingId:      0,

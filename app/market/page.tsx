@@ -118,9 +118,13 @@ export default function MarketPage() {
   const handleExecute = async () => {
     if (!amount || parseFloat(amount) <= 0 || !selected) return
 
-    // CEST check must be synchronous (before any await) so browser doesn't block popup
+    // CEST is not yet listed on any DEX — planned Q2 2026
     if (selected.ticker === 'CEST') {
-      window.open(`https://app.uniswap.org/swap?outputCurrency=${ADDRESSES.cestToken}&chain=arbitrum_sepolia`, '_blank')
+      showToast(
+        'CEST — Coming Q2 2026',
+        'CEST Uniswap listing is planned for Q2 2026. Get free CEST now at the /faucet (2,400 CEST per wallet).',
+        'info',
+      )
       return
     }
 

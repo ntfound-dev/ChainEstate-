@@ -114,18 +114,13 @@ export function MarketListingsPanel({
                   </span>
                 </div>
                 {listing.isDex ? (
-                  <a
-                    href="https://app.uniswap.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded px-3 py-1.5 text-xs font-body transition-all duration-150 whitespace-nowrap"
-                    style={{ border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold-primary)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212,175,55,0.08)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                  <span
+                    className="rounded px-3 py-1.5 text-xs font-body whitespace-nowrap"
+                    style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-ghost)', cursor: 'default' }}
+                    title="CEST Uniswap listing planned Q2 2026 — not yet live"
                   >
-                    DEX ↗
-                  </a>
+                    Q2 2026
+                  </span>
                 ) : (
                   <button
                     onClick={(event) => {

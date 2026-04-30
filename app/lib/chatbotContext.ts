@@ -98,7 +98,7 @@ Chain: Arbitrum Sepolia (chainId 421614)
 - Genesis Airdrop Pool: 250,000,000 CEST ($10M) — claim at /airdrop
 - Standard: ERC20Votes (governance-enabled)
 - Contract: 0xC6c08db835636Cf40530dDf90Bf3Bb15bc78190D
-- Trading: Uniswap DEX (not on SecondaryMarket.sol — it's a governance token, not a property token)
+- Trading: Uniswap listing planned Q2 2026 — NOT yet live on any DEX. Get CEST now via /faucet (2,400 free) or genesis airdrop at /airdrop
 - Chain: Arbitrum Sepolia
 
 ### CEST Staking Tiers (trading fee discounts):
