@@ -9,9 +9,9 @@ import { TOKEN_PRICES, CEST_MARKET_CAP } from '../lib/contracts'
 
 // Official ChainEstate social handles
 const SOCIALS = {
-  twitter:  { handle: '@ChainEstateXYZ',   url: 'https://twitter.com/ChainEstateXYZ'          },
-  github:   { handle: 'ChainEstateXYZ',    url: 'https://github.com/ChainEstateXYZ'           },
-  telegram: { handle: 't.me/ChainEstateHQ', url: 'https://t.me/ChainEstateHQ'                 },
+  twitter:  { handle: '@ChainEstatee',          url: 'https://x.com/ChainEstatee'                     },
+  github:   { handle: 'ntfound-dev/ChainEstate-', url: 'https://github.com/ntfound-dev/ChainEstate-'  },
+  telegram: { handle: 't.me/+WDbtaMWs-_1lYmRl',  url: 'https://t.me/+WDbtaMWs-_1lYmRl'              },
 }
 
 const TOTAL_AIRDROP = '250,000,000'
@@ -48,7 +48,7 @@ const TASKS: Task[] = [
   {
     id: 'github',
     label: 'Star on GitHub',
-    description: `Star the ChainEstateXYZ repository and enter your GitHub username.`,
+    description: `Star the ntfound-dev/ChainEstate- repository and enter your GitHub username.`,
     points: 1000,
     icon: '⭐',
     type: 'github',

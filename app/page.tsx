@@ -597,9 +597,9 @@ export default function LandingPage() {
                 {[
                   ['/airdrop', '🪂 Airdrop'],
                   ['/faucet', '🚰 Testnet Faucet'],
-                  ['https://twitter.com/ChainEstateXYZ', '𝕏 Twitter / X'],
-                  ['https://github.com/ChainEstateXYZ', '⭐ GitHub'],
-                  ['https://t.me/ChainEstateHQ', '✈️ Telegram'],
+                  ['https://x.com/ChainEstatee', '𝕏 Twitter / X'],
+                  ['https://github.com/ntfound-dev/ChainEstate-', '⭐ GitHub'],
+                  ['https://t.me/+WDbtaMWs-_1lYmRl', '✈️ Telegram'],
                 ].map(([href, label]) => (
                   href.startsWith('http') ? (
                     <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="text-sm font-body hover:opacity-80 transition-opacity" style={{ color: 'var(--text-secondary)' }}>

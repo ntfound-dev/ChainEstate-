@@ -195,7 +195,7 @@ Monthly USDT rent is distributed to all property token holders via RentDistribut
 
 250 million CEST ($10M worth at $0.04) is available in the genesis airdrop.
 - Page: /airdrop
-- Tasks: follow on Twitter, join Discord, make your first purchase, etc.
+- Tasks: follow @ChainEstatee on X (Twitter), join Telegram, star GitHub, make your first purchase, etc.
 - Each completed task earns CEST allocation
 - Wallet connection required
 
