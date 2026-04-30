@@ -108,7 +108,7 @@ export default function MarketPage() {
     const walletClient = createPublicClient({ chain: arbitrumSepolia, transport: http(rpcUrl) })
 
     if (selected.ticker === 'CEST') {
-      showToast('CEST trades on DEX', 'CEST is a governance token — buy it via the DEX link in the listings panel.', 'info')
+      window.open(`https://app.uniswap.org/swap?outputCurrency=${ADDRESSES.cestToken}&chain=arbitrum_sepolia`, '_blank')
       return
     }
 
