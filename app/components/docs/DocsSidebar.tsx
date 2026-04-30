@@ -5,12 +5,13 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
 const SECTIONS = [
-  { href: '/docs',                   label: 'Overview',            icon: '⛓' },
-  { href: '/docs/problem-solution',  label: 'Problem & Solution',  icon: '🎯' },
-  { href: '/docs/business-model',    label: 'Business Model',      icon: '💼' },
-  { href: '/docs/roadmap',           label: 'Roadmap',             icon: '🗺️' },
-  { href: '/docs/contracts',         label: 'Smart Contracts',     icon: '📜' },
-  { href: '/docs/sdk',               label: 'SDK & Integration',   icon: '⚡' },
+  { href: '/docs',                    label: 'Overview',            icon: '⛓' },
+  { href: '/docs/getting-started',    label: 'Getting Started',     icon: '🚀' },
+  { href: '/docs/problem-solution',   label: 'Problem & Solution',  icon: '🎯' },
+  { href: '/docs/business-model',     label: 'Business Model',      icon: '💼' },
+  { href: '/docs/roadmap',            label: 'Roadmap',             icon: '🗺️' },
+  { href: '/docs/contracts',          label: 'Smart Contracts',     icon: '📜' },
+  { href: '/docs/sdk',                label: 'SDK & Integration',   icon: '⚡' },
 ]
 
 export function DocsSidebar() {

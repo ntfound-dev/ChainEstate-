@@ -23,7 +23,7 @@ const PHASES = [
       { done: true,  text: 'Testnet faucet: 1,000 USDT + 2,400 CEST per address' },
       { done: true,  text: 'NFT metadata API: ERC-721 standard for all 5 properties' },
       { done: true,  text: 'ConfidentialGovernance: token-gated proposals + voting' },
-      { done: true,  text: '60 tests passing across 5 contract suites' },
+      { done: true,  text: '73 tests passing across 6 contract suites' },
     ],
   },
   {

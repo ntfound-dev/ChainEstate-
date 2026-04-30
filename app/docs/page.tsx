@@ -1,10 +1,11 @@
 import Link from 'next/link'
 
 const QUICK_LINKS = [
+  { href: '/docs/getting-started',  icon: '🚀', title: 'Getting Started',   desc: 'Install, configure, run locally or use the live app. TEE flow, transaction guides, testnet resources.' },
   { href: '/docs/problem-solution', icon: '🎯', title: 'Problem & Solution', desc: 'Why real estate needs blockchain — and why blockchain needs privacy.' },
   { href: '/docs/business-model',   icon: '💼', title: 'Business Model',     desc: 'How ChainEstate generates revenue and sustains the ecosystem.' },
   { href: '/docs/roadmap',          icon: '🗺️', title: 'Roadmap',            desc: 'Milestones from testnet launch to global institutional adoption.' },
-  { href: '/docs/contracts',        icon: '📜', title: 'Smart Contracts',    desc: 'Architecture, function signatures, and integration patterns.' },
+  { href: '/docs/contracts',        icon: '📜', title: 'Smart Contracts',    desc: 'Architecture, function signatures, IPFS document registry, iApp live test evidence.' },
   { href: '/docs/sdk',              icon: '⚡', title: 'SDK & Integration',  desc: 'iExec Nox handle client, buy/sell flows, direct transfer, governance voting, ABI reference.' },
 ]
 
@@ -13,7 +14,9 @@ const STATS = [
   { label: 'Total Supply',     value: '$2.64M',      sub: 'USDT tokenized real estate' },
   { label: 'CEST Market Cap',  value: '$40M',        sub: '1B supply · $0.04 each' },
   { label: 'Airdrop Pool',     value: '$10M',        sub: '250M CEST to community' },
-  { label: 'Tests Passing',    value: '60',          sub: 'Across 5 contract suites' },
+  { label: 'Tests Passing',    value: '73',          sub: 'Across 6 contract suites' },
+  { label: 'IPFS Documents',   value: '10',          sub: 'Pinned via Pinata · all verified' },
+  { label: 'iApp Tasks',       value: '4 / 5',       sub: 'COMPLETED on Bellecour TEE' },
   { label: 'Privacy Layer',    value: 'Intel TDX',   sub: 'iExec Nox ERC-7984' },
 ]
 
@@ -36,7 +39,7 @@ export default function DocsOverview() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-12">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-12">
         {STATS.map(s => (
           <div
             key={s.label}
@@ -60,7 +63,7 @@ export default function DocsOverview() {
       <h2 className="font-display text-lg mb-4" style={{ color: 'var(--text-primary)' }}>
         Contents
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
         {QUICK_LINKS.map(l => (
           <Link
             key={l.href}
@@ -92,7 +95,7 @@ export default function DocsOverview() {
         {[
           { layer: 'Blockchain',    tech: 'Arbitrum Sepolia',                  detail: 'chainId 421614 — EVM-compatible L2' },
           { layer: 'Privacy',       tech: 'iExec Nox — ERC-7984',             detail: 'Intel TDX TEE, encrypted euint256 balances' },
-          { layer: 'Smart Contracts', tech: 'Solidity 0.8.28 + Hardhat',      detail: '5 core contracts, 60 tests passing' },
+          { layer: 'Smart Contracts', tech: 'Solidity 0.8.28 + Hardhat',      detail: '6 core contracts, 73 tests passing' },
           { layer: 'Frontend',      tech: 'Next.js 14 App Router',            detail: 'Tailwind CSS, Framer Motion, dark luxury design' },
           { layer: 'Web3',          tech: 'Wagmi v2 + Viem',                  detail: 'useWriteContract, usePublicClient, Arbitrum Sepolia' },
           { layer: 'Nox SDK',       tech: '@iexec-nox/handle',                detail: 'createViemHandleClient, encryptInput → {handle, handleProof}' },
