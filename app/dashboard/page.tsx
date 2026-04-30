@@ -12,6 +12,7 @@ import type { DashboardTab, PortfolioHolding, ToastType } from '../components/da
 import { ConfidentialBadge } from '../components/ui/ConfidentialBadge'
 import { TransactionModal } from '../components/ui/TransactionModal'
 import { useToast } from '../components/ui/Toast'
+import { encodeFunctionData } from 'viem'
 import { useReadContracts } from 'wagmi'
 import {
   DASHBOARD_ACTIVITY,
@@ -22,7 +23,19 @@ import {
   DASHBOARD_WATCHLIST,
 } from '../lib/dashboardData'
 import { PROPERTIES } from '../lib/propertiesData'
-import { ADDRESSES, REGISTRY_ABI } from '../lib/contracts'
+import { ADDRESSES, REGISTRY_ABI, GOVERNANCE_ABI, PROPERTY_TOKEN_ABI } from '../lib/contracts'
+
+type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
+declare global { interface Window { ethereum?: Ethereum } }
+
+async function getGasPrice(): Promise<string> {
+  try {
+    const rpc = process.env.NEXT_PUBLIC_RPC_URL ?? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC ?? 'https://arbitrum-sepolia-rpc.publicnode.com'
+    const res = await fetch(rpc, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }) })
+    const { result } = await res.json() as { result: string }
+    return '0x' + (BigInt(result) * 2n).toString(16)
+  } catch { return '0x5F5E100' }
+}
 
 const ACTIVITY_STYLES: Record<(typeof DASHBOARD_ACTIVITY)[number]['status'], { color: string; glow: string; label: string }> = {
   success: { color: 'var(--nox-green)', glow: 'rgba(0,229,160,0.18)', label: 'Settled' },
@@ -81,6 +94,16 @@ function HoldingsPanel({
           <button className="rounded-full px-4 py-2 text-xs btn-ghost">+ Buy More</button>
         </Link>
       </div>
+
+      {holdings.length === 0 && (
+        <div className="rounded-2xl border py-12 text-center" style={{ borderColor: 'var(--border-subtle)', background: 'rgba(255,255,255,0.01)' }}>
+          <p className="font-display text-lg" style={{ color: 'var(--text-primary)' }}>No properties yet</p>
+          <p className="mt-2 text-sm font-body" style={{ color: 'var(--text-ghost)' }}>You are not a holder of any property token. Buy tokens to see your portfolio.</p>
+          <Link href="/properties" className="mt-4 inline-block">
+            <button className="rounded-full px-5 py-2.5 text-sm btn-gold">Browse Properties →</button>
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-3 md:hidden">
         {holdings.map((holding, index) => {
@@ -771,14 +794,17 @@ function IncomeTab({ holdings }: { holdings: PortfolioHolding[] }) {
 
 function TransferTab({
   holdings,
+  address,
   onSecureAction,
 }: {
   holdings: PortfolioHolding[]
+  address?: string
   onSecureAction: (message: string, sub: string, type?: ToastType) => void
 }) {
   const [selectedPropertyId, setSelectedPropertyId] = useState(holdings[0]?.propertyId ?? '')
   const [recipient, setRecipient] = useState(DASHBOARD_TRANSFER_CONTACTS[0]?.address ?? '')
   const [amount, setAmount] = useState('250')
+  const [txPending, setTxPending] = useState(false)
 
   const selectedHolding = holdings.find((holding) => holding.propertyId === selectedPropertyId) ?? holdings[0]
   const selectedRecipient = DASHBOARD_TRANSFER_CONTACTS.find((contact) => contact.address === recipient)
@@ -863,11 +889,30 @@ function TransferTab({
           </div>
 
           <button
-            onClick={() => onSecureAction('Transfer initiated', `${transferAmount || 0} ${selectedHolding?.ticker ?? 'TKN'} moving through encrypted settlement`, 'info')}
-            disabled={!selectedHolding || transferAmount <= 0}
+            onClick={async () => {
+              const eth = window.ethereum
+              if (!eth || !address) { onSecureAction('Wallet not connected', 'Connect MetaMask to transfer tokens.', 'error'); return }
+              if (!selectedHolding || transferAmount <= 0) return
+              const property = PROPERTIES.find((p) => p.id === selectedHolding.propertyId)
+              if (!property) { onSecureAction('Property not found', 'Cannot resolve contract address.', 'error'); return }
+              try {
+                setTxPending(true)
+                const gasPrice = await getGasPrice()
+                const expiry = BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+                const grantData = encodeFunctionData({ abi: PROPERTY_TOKEN_ABI, functionName: 'grantOperator', args: [recipient as `0x${string}`, expiry] })
+                const tx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: property.contractAddress, data: grantData, gasPrice }] }) as string
+                onSecureAction('Operator granted ✓', `${selectedHolding.ticker} — recipient can now transfer your tokens. Tx: ${tx.slice(0, 10)}…`, 'success')
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : 'Transaction failed'
+                onSecureAction('Transfer failed', msg.slice(0, 100), 'error')
+              } finally {
+                setTxPending(false)
+              }
+            }}
+            disabled={!selectedHolding || transferAmount <= 0 || txPending}
             className="w-full rounded-xl px-4 py-3 text-sm btn-gold disabled:cursor-not-allowed disabled:opacity-40"
           >
-            🔒 Encrypt & Transfer
+            {txPending ? '⏳ Sending...' : '🔒 Grant Operator & Transfer'}
           </button>
         </TerminalPanel>
 
@@ -910,10 +955,13 @@ function TransferTab({
 }
 
 function GovernanceTab({
+  address,
   onSecureAction,
 }: {
+  address?: string
   onSecureAction: (message: string, sub: string, type?: ToastType) => void
 }) {
+  const [voting, setVoting] = useState<number | null>(null)
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -967,10 +1015,26 @@ function GovernanceTab({
               <div className="flex items-center justify-between gap-3 text-xs font-body">
                 <span style={{ color: 'var(--text-ghost)' }}>Ends on {proposal.endsOn}</span>
                 <button
-                  onClick={() => onSecureAction('Governance signature queued', `${proposal.id} support message forwarded to the private registry`, 'success')}
-                  className="rounded-full px-4 py-2 text-xs btn-gold"
+                  onClick={async () => {
+                    const eth = window.ethereum
+                    if (!eth || !address) { onSecureAction('Wallet not connected', 'Connect MetaMask to vote.', 'error'); return }
+                    try {
+                      setVoting(proposal.onChainProposalId)
+                      const gasPrice = await getGasPrice()
+                      const voteData = encodeFunctionData({ abi: GOVERNANCE_ABI, functionName: 'castVote', args: [BigInt(proposal.onChainProposalId), 0] })
+                      const tx = await eth.request({ method: 'eth_sendTransaction', params: [{ from: address, to: ADDRESSES.confidentialGovernance, data: voteData, gasPrice }] }) as string
+                      onSecureAction(`Vote cast ✓ — ${proposal.id}`, `Voted FOR on-chain. Tx: ${(tx as string).slice(0, 10)}…`, 'success')
+                    } catch (err) {
+                      const msg = err instanceof Error ? err.message : 'Vote failed'
+                      onSecureAction('Vote failed', msg.slice(0, 100), 'error')
+                    } finally {
+                      setVoting(null)
+                    }
+                  }}
+                  disabled={voting === proposal.onChainProposalId}
+                  className="rounded-full px-4 py-2 text-xs btn-gold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Sign Support
+                  {voting === proposal.onChainProposalId ? '⏳ Voting...' : 'Vote For ✓'}
                 </button>
               </div>
             </TerminalPanel>
@@ -1050,7 +1114,7 @@ export default function DashboardPage() {
   const timersRef = useRef<number[]>([])
 
   // Real on-chain holder status — check registry for all 5 properties
-  const { data: holderData } = useReadContracts({
+  const { data: holderData, refetch: refetchHolders } = useReadContracts({
     contracts: [1, 2, 3, 4, 5].map((id) => ({
       address: ADDRESSES.registry,
       abi: REGISTRY_ABI,
@@ -1069,14 +1133,21 @@ export default function DashboardPage() {
     }).filter(Boolean)
   }, [address, holderData])
 
-  const holdings = useMemo<PortfolioHolding[]>(
-    () =>
-      DASHBOARD_HOLDINGS.map((holding) => ({
-        ...holding,
-        property: PROPERTIES.find((property) => property.id === holding.propertyId),
-      })),
-    [],
-  )
+  // Filter DASHBOARD_HOLDINGS to only properties the user actually holds on-chain.
+  // Token amounts are estimates (real balances are euint256 — encrypted and unreadable).
+  const holdings = useMemo<PortfolioHolding[]>(() => {
+    const heldIds = new Set(onChainHoldings.map((p) => p?.id))
+    const filtered = heldIds.size > 0
+      ? DASHBOARD_HOLDINGS.filter((h) => heldIds.has(h.propertyId))
+      : DASHBOARD_HOLDINGS // fall back to all while on-chain data loads
+    // Recalculate allocations so they sum to 100%
+    const totalValue = filtered.reduce((s, h) => s + h.value, 0)
+    return filtered.map((h) => ({
+      ...h,
+      allocation: totalValue > 0 ? Math.round((h.value / totalValue) * 100) : h.allocation,
+      property: PROPERTIES.find((p) => p.id === h.propertyId),
+    }))
+  }, [onChainHoldings])
 
   useEffect(() => {
     return () => {
@@ -1093,8 +1164,9 @@ export default function DashboardPage() {
     timersRef.current.push(timer)
   }
 
-  const handleRefresh = () => {
-    showToast('Vault synchronized', 'Latest private positions pulled from Arbitrum Sepolia', 'info')
+  const handleRefresh = async () => {
+    await refetchHolders()
+    showToast('Vault synchronized', 'Latest holder status re-fetched from PropertyRegistry on Arbitrum Sepolia', 'info')
   }
 
   if (!isConnected) {
@@ -1116,8 +1188,8 @@ export default function DashboardPage() {
             )}
             {tab === 'properties' && <PropertiesTab holdings={holdings} />}
             {tab === 'income' && <IncomeTab holdings={holdings} />}
-            {tab === 'transfer' && <TransferTab holdings={holdings} onSecureAction={queueSecureAction} />}
-            {tab === 'governance' && <GovernanceTab onSecureAction={queueSecureAction} />}
+            {tab === 'transfer' && <TransferTab holdings={holdings} address={address} onSecureAction={queueSecureAction} />}
+            {tab === 'governance' && <GovernanceTab address={address} onSecureAction={queueSecureAction} />}
             {tab === 'settings' && <SettingsTab />}
           </motion.div>
         </AnimatePresence>

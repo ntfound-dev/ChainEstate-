@@ -1,3 +1,6 @@
+// All 5 properties defined here. Dashboard filters to only show ones where
+// the connected wallet is a verified holder via PropertyRegistry.getPropertyHolders().
+// Token amounts / values are estimates — real balances are euint256 (encrypted on-chain).
 export const DASHBOARD_HOLDINGS = [
   {
     propertyId: 'pearl-dxb-001',
@@ -40,6 +43,34 @@ export const DASHBOARD_HOLDINGS = [
     allocation: 21,
     nextDistribution: 'May 10',
     yield: 7.2,
+  },
+  {
+    propertyId: 'canary-lon-001',
+    ticker: 'CANARY-LON-001',
+    name: 'Canary Wharf Executive',
+    location: 'London, UK',
+    tokens: 4000,
+    value: 3960,
+    monthlyIncome: 17.8,
+    since: 'Apr 2026',
+    occupancy: 88,
+    allocation: 35,
+    nextDistribution: 'May 08',
+    yield: 5.4,
+  },
+  {
+    propertyId: 'azure-bcn-001',
+    ticker: 'AZURE-BCN-001',
+    name: 'Azure Barcelona Suite',
+    location: 'Barcelona, Spain',
+    tokens: 1500,
+    value: 1545,
+    monthlyIncome: 10.4,
+    since: 'Apr 2026',
+    occupancy: 92,
+    allocation: 15,
+    nextDistribution: 'May 06',
+    yield: 8.1,
   },
 ]
 
@@ -86,9 +117,13 @@ export const DASHBOARD_ACTIVITY = [
   },
 ]
 
+// onChainProposalId = real uint256 ID in ConfidentialGovernance.sol
+// propertyId = real on-chain property ID (1-5)
 export const DASHBOARD_PROPOSALS = [
   {
     id: 'CEIP-04',
+    onChainProposalId: 1,
+    propertyId: 1,
     title: 'Open Riyadh Villa tranche for Q2 onboarding',
     summary: 'Add a new Middle East residential asset with a 6.7% target yield and 400k token supply.',
     status: 'Active',
@@ -97,6 +132,8 @@ export const DASHBOARD_PROPOSALS = [
   },
   {
     id: 'CEIP-03',
+    onChainProposalId: 2,
+    propertyId: 2,
     title: 'Raise maintenance reserve threshold from 5% to 6%',
     summary: 'Increase reserve buffers for short-term rental assets with seasonally volatile occupancy.',
     status: 'Review',
@@ -120,7 +157,7 @@ export const DASHBOARD_TRANSFER_CONTACTS = [
   {
     label:   'Secondary market escrow',
     address: '0x77836405DC14Ca1Ef0304041ec8D3B4166424cfa',
-    note:    'SecondaryMarket.sol escrow — Arbitrum Sepolia',
+    note:    'SecondaryMarket.sol — grants operator access for listing',
   },
 ]
 
