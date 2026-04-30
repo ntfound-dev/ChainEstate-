@@ -17,6 +17,17 @@ const QUICK_PROMPTS = [
   'How is rent distributed privately?',
 ]
 
+function SparkleIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      {/* Large 4-pointed star */}
+      <path d="M10 0C10 0 11.2 7 13.5 9C15.8 11 20 10 20 10C20 10 15.8 9 13.5 11C11.2 13 10 20 10 20C10 20 8.8 13 6.5 11C4.2 9 0 10 0 10C0 10 4.2 11 6.5 9C8.8 7 10 0 10 0Z" />
+      {/* Small accent star top-right */}
+      <path d="M16.5 1.5C16.5 1.5 16.9 3.8 17.8 4.7C18.7 5.6 21 6 21 6" opacity="0" />
+    </svg>
+  )
+}
+
 function TypingDots() {
   return (
     <div className="flex items-center gap-1 px-1 py-0.5">
@@ -140,13 +151,11 @@ export function AIChatbot() {
               <div className="flex items-center gap-3">
                 {/* AI orb icon */}
                 <div
-                  className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl text-xs font-bold"
+                  className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl"
                   style={{
                     background: 'linear-gradient(135deg, rgba(0,229,160,0.15), rgba(201,168,76,0.08))',
                     border: '1px solid rgba(0,229,160,0.25)',
                     color: 'var(--nox-green)',
-                    fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.05em',
                   }}
                 >
                   <span
@@ -155,7 +164,7 @@ export function AIChatbot() {
                       background: 'radial-gradient(circle at 35% 35%, rgba(0,229,160,0.18), transparent 60%)',
                     }}
                   />
-                  AI
+                  <SparkleIcon size={18} />
                 </div>
 
                 <div>
@@ -213,14 +222,17 @@ export function AIChatbot() {
                   >
                     {/* Avatar dot */}
                     <div
-                      className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
+                      className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg"
                       style={
                         msg.role === 'user'
-                          ? { background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold-primary)', fontFamily: 'var(--font-body)' }
-                          : { background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)', fontFamily: 'var(--font-body)' }
+                          ? { background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--gold-primary)' }
+                          : { background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)' }
                       }
                     >
-                      {msg.role === 'user' ? 'U' : 'AI'}
+                      {msg.role === 'user'
+                        ? <span style={{ fontFamily: 'var(--font-body)', fontSize: 9, fontWeight: 700 }}>U</span>
+                        : <SparkleIcon size={10} />
+                      }
                     </div>
 
                     <div
@@ -255,10 +267,10 @@ export function AIChatbot() {
                     className="flex items-start gap-2.5"
                   >
                     <div
-                      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[9px] font-bold"
-                      style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)', fontFamily: 'var(--font-body)' }}
+                      className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg"
+                      style={{ background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.18)', color: 'var(--nox-green)' }}
                     >
-                      AI
+                      <SparkleIcon size={10} />
                     </div>
                     <div
                       className="rounded-2xl px-4 py-3"
@@ -376,20 +388,18 @@ export function AIChatbot() {
             />
           )}
           <span
-            className="relative flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+            className="relative flex h-8 w-8 items-center justify-center rounded-full"
             style={{
               background: 'linear-gradient(135deg, rgba(0,229,160,0.18), rgba(201,168,76,0.1))',
               border: '1px solid rgba(0,229,160,0.3)',
               color: 'var(--nox-green)',
-              fontFamily: 'var(--font-body)',
-              letterSpacing: '0.04em',
             }}
           >
             {open ? (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                 <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
-            ) : 'AI'}
+            ) : <SparkleIcon size={14} />}
           </span>
         </span>
 
