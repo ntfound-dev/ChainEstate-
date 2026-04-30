@@ -18,6 +18,7 @@ import { arbitrumSepolia } from '../lib/chains'
 type Ethereum = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }
 declare global { interface Window { ethereum?: Ethereum } }
 const MAX_UINT256 = (1n << 256n) - 1n
+type ApiErrorResponse = { error?: string; hint?: string }
 
 function extractMsg(err: unknown): string {
   if (err instanceof Error) return err.message
@@ -28,6 +29,11 @@ function extractMsg(err: unknown): string {
   }
   if (typeof err === 'string' && err) return err
   return 'Transaction failed.'
+}
+
+function formatApiError(data: ApiErrorResponse | null, fallback: string): string {
+  const message = data?.error || fallback
+  return data?.hint ? `${message}. ${data.hint}` : message
 }
 
 async function getChainId(eth: Ethereum): Promise<number> {
@@ -235,11 +241,11 @@ export default function MarketPage() {
             buyerAddress: address,
           }),
         })
-        if (!startRes.ok) {
-          const errData = await startRes.json() as { error?: string }
-          throw new Error(errData.error ?? 'iExec task submission failed')
+        const startJson = await startRes.json().catch(() => null) as ({ taskid?: string; dealid?: string } & ApiErrorResponse) | null
+        if (!startRes.ok || startJson?.error) {
+          throw new Error(formatApiError(startJson, 'iExec task submission failed'))
         }
-        const { taskid, dealid } = await startRes.json() as { taskid: string; dealid: string }
+        const { taskid, dealid } = startJson as { taskid: string; dealid: string }
 
         // Poll until TEE computation completes (each request < 10s, Vercel-safe)
         let handle: `0x${string}` | undefined
@@ -247,8 +253,9 @@ export default function MarketPage() {
         for (let i = 0; i < 72; i++) {
           await new Promise(r => setTimeout(r, 5000))
           const pollRes = await fetch(`/api/iexec-poll?taskid=${taskid}&dealid=${dealid}`)
-          if (!pollRes.ok) continue
-          const poll = await pollRes.json() as { status: string; handle?: string; handleProof?: string; error?: string }
+          const poll = await pollRes.json().catch(() => null) as ({ status: string; handle?: string; handleProof?: string } & ApiErrorResponse) | null
+          if (!pollRes.ok) throw new Error(formatApiError(poll, 'iExec polling failed'))
+          if (!poll) continue
           if (poll.status === 'failed') throw new Error(poll.error ?? 'iExec task failed in TEE worker')
           if (poll.status === 'completed' && poll.handle && poll.handleProof) {
             handle = poll.handle as `0x${string}`

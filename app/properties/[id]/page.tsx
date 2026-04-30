@@ -138,6 +138,12 @@ const ACTIVITY = [
 
 type BuyStep = 'idle' | 'encrypting' | 'approving' | 'purchasing' | 'done' | 'error'
 type PayCurrency = 'USDT' | 'USDC' | 'CEST'
+type ApiErrorResponse = { error?: string; hint?: string }
+
+function formatApiError(data: ApiErrorResponse | null, fallback: string): string {
+  const message = data?.error || fallback
+  return data?.hint ? `${message}. ${data.hint}` : message
+}
 
 export default function PropertyDetailPage({ params }: { params: { id: string } }) {
   const property = PROPERTIES.find(p => p.id === params.id) ?? PROPERTIES[0]
@@ -204,8 +210,8 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tokenAmount: tokenAmount.toString(), contractAddress: property.contractAddress, buyerAddress: address }),
       })
-      const startJson = await startRes.json() as { taskid?: string; dealid?: string; error?: string }
-      if (!startRes.ok || startJson.error) throw new Error(startJson.error ?? 'iExec task submission failed')
+      const startJson = await startRes.json() as { taskid?: string; dealid?: string } & ApiErrorResponse
+      if (!startRes.ok || startJson.error) throw new Error(formatApiError(startJson, 'iExec task submission failed'))
       const { taskid, dealid } = startJson as { taskid: string; dealid: string }
 
       // Poll until TEE computation completes (each call < 30s, Vercel-safe)
@@ -214,8 +220,9 @@ export default function PropertyDetailPage({ params }: { params: { id: string } 
       for (let i = 0; i < 72; i++) {
         await new Promise(r => setTimeout(r, 5000))
         const pollRes = await fetch(`/api/iexec-poll?taskid=${taskid}&dealid=${dealid}`)
-        if (!pollRes.ok) continue
-        const poll = await pollRes.json() as { status: string; handle?: string; handleProof?: string; error?: string }
+        const poll = await pollRes.json().catch(() => null) as ({ status: string; handle?: string; handleProof?: string } & ApiErrorResponse) | null
+        if (!pollRes.ok) throw new Error(formatApiError(poll, 'iExec polling failed'))
+        if (!poll) continue
         if (poll.status === 'failed') throw new Error(poll.error ?? 'iExec task failed in TEE worker')
         if (poll.status === 'completed' && poll.handle && poll.handleProof) {
           handle = poll.handle as `0x${string}`

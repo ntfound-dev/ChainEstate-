@@ -12,10 +12,10 @@ interface ChatMessage {
 }
 
 const QUICK_PROMPTS = [
-  'Properti mana yang yield-nya paling tinggi?',
-  'Cara beli token properti pertama kali?',
-  'Apa itu CEST dan cara stake-nya?',
-  'Bagaimana iExec Nox menyembunyikan saldo?',
+  'Which property has the highest yield?',
+  'How do I buy my first property token?',
+  'What is CEST and how do I stake it?',
+  'How does iExec Nox hide balances?',
 ]
 
 function SparkleIcon({ size = 14 }: { size?: number }) {
@@ -54,7 +54,7 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Halo! Saya tahu segalanya tentang ChainEstate — 5 properti, yield, kontrak, cara beli/jual, CEST staking, privasi iExec Nox, airdrop, faucet, dan docs. Tanya apa saja, balas pakai bahasa apapun.',
+      content: 'Hi! I know ChainEstate end to end - the 5 properties, yields, contracts, buying and selling, CEST staking, iExec Nox privacy, airdrop, faucet, and docs. Ask me anything; I can continue in any language you use.',
     },
   ])
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -321,7 +321,7 @@ export function AIChatbot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Tanya apa saja… (Enter untuk kirim)"
+                placeholder="Ask anything... (Enter to send)"
                 rows={2}
                 className="flex-1 resize-none rounded-2xl px-4 py-3 text-[13px] outline-none transition-all"
                 style={{
